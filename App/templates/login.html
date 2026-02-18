@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CariFin Data Dashboard - Login</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: Arial, sans-serif; }
+        body { background: #f5f5f5; display: flex; justify-content: center; align-items: center; height: 100vh; }
+        .login-container { width: 100%; max-width: 400px; padding: 20px; }
+        .login-card { background: white; border-radius: 8px; padding: 40px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .login-header { text-align: center; margin-bottom: 30px; }
+        .login-header h1 { color: #333; font-size: 28px; margin-bottom: 5px; }
+        .login-header p { color: #666; font-size: 14px; }
+        .form-group { margin-bottom: 20px; }
+        label { display: block; margin-bottom: 5px; color: #333; font-weight: 500; font-size: 14px; }
+        input { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; transition: border-color 0.3s; }
+        input:focus { border-color: #1a73e8; outline: none; }
+        .forgot-password { text-align: right; margin-bottom: 20px; }
+        .forgot-password a { color: #1a73e8; text-decoration: none; font-size: 13px; }
+        .login-btn { width: 100%; padding: 12px; background: #1a73e8; color: white; border: none; border-radius: 4px; font-size: 16px; font-weight: 500; cursor: pointer; }
+        .login-btn:hover { background: #1557b0; }
+        .request-account { text-align: center; margin-top: 20px; }
+        .request-account a { color: #1a73e8; text-decoration: none; font-size: 14px; }
+        .flash { padding: 10px; border-radius: 4px; margin-bottom: 20px; }
+        .flash.success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .flash.danger { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-card">
+            <div class="login-header">
+                <h1>CariFin Data Dashboard</h1>
+                <p>Enter your credentials to access your account</p>
+            </div>
+
+            <!-- Flash messages -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="flash {{ category }}">{{ message }}</div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            <form method="POST" action="{{ url_for('auth_views.login') }}">
+                <div class="form-group">
+                    <label for="email">Email</label>
+                    <input type="email" id="email" name="email" required>
+                </div>
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" name="password" required>
+                </div>
+                <div class="forgot-password">
+                    <a href="#">Forgot password?</a>
+                </div>
+                <button type="submit" class="login-btn">Login</button>
+            </form>
+
+            <div class="request-account">
+                <a href="#">Request Account</a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
