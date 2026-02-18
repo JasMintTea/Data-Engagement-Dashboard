@@ -255,7 +255,7 @@ class Registration(db.Model):
 class BibNo(db.Model):
     __tablename__ = 'bibNo'
     id = db.Column(db.Integer, primary_key=True)
-    #bib_value = db.Column(db.String(50), nullable=False)
+    bib_value = db.Column(db.String(50), nullable=False)
     institution_id = db.Column(db.Integer, db.ForeignKey('institution.id'), nullable=True)
     season_id = db.Column(db.Integer, db.ForeignKey('season.id'), nullable=False)
 
@@ -274,7 +274,7 @@ class BibNo(db.Model):
 class BibTag(db.Model):
     __tablename__ = 'bibTag'
     id = db.Column(db.Integer, primary_key=True)
-    #bib_value = db.Column(db.String(50), nullable=False)
+    bib_value = db.Column(db.String(50), nullable=False)
     institution_id = db.Column(db.Integer, db.ForeignKey('institution.id'), nullable=True)
     season_id = db.Column(db.Integer, db.ForeignKey('season.id'), nullable=False)
 
