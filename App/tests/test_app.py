@@ -29,7 +29,7 @@ class UserUnitTests(unittest.TestCase):
     def test_get_json(self):
         user = User(firstname="Bob", lastname="Smith", username="bob", email="bob@test.com", password="bobpass")
         user_json = user.get_json()
-        self.assertDictEqual(user_json, {"id":None, "username":"bob", "email":"bob@test.com"})
+        self.assertDictEqual(user_json, {"id":None, "firstname":"Bob", "lastname":"Smith", "username":"bob", "email":"bob@test.com", "role":"user", "institution_id": None})
     
     def test_hashed_password(self):
         password = "mypass"
@@ -38,8 +38,8 @@ class UserUnitTests(unittest.TestCase):
         assert user.password != password
 
     def test_check_password(self):
-        password = "mypass"
-        user = User(firstname="Bob", lastname="Smith", username="bob", email="bob@test.com", password="bobpass")
+        password = "bobpass"
+        user = User(firstname="Bob", lastname="Smith", username="bob", email="bob@test.com", password=password)
         assert user.check_password(password)
 
 '''
@@ -68,7 +68,7 @@ class UsersIntegrationTests(unittest.TestCase):
 
     def test_get_all_users_json(self):
         users_json = get_all_users_json()
-        self,self.assertIsInstance(users_json, list)
+        self.assertIsInstance(users_json, list)
         if len(users_json) > 0:
             self.assertIn('username', users_json[0])
             self.assertIn('email', users_json[0])
@@ -76,10 +76,11 @@ class UsersIntegrationTests(unittest.TestCase):
     # Tests data changes in the database
     def test_update_user(self):
         user = create_user(firstname="Test", lastname="User", username="testuser", email="test@test.com", password="testpass")
-        user_id = 1
+        user_id = user.id
 
-        update_user(1, "ronnie")
-        updated_user = get_user(1)
+        update_user(user_id, "ronnie")
+        updated_user = get_user(user_id)
+        assert updated_user is not None, f"User with id {user_id} not found"
         assert updated_user.username == "ronnie"
         
 

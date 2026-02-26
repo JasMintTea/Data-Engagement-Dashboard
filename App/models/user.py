@@ -23,7 +23,9 @@ class User(db.Model):
         'polymorphic_on': role
     }
 
-    def __init__(self, username, email, password, institution_id=None):
+    def __init__(self, firstname, lastname, username, email, password, institution_id=None):
+        self.firstname = firstname
+        self.lastname = lastname
         self.username = username
         self.email = email
         self.set_password(password)
@@ -57,9 +59,7 @@ class Admin(User):
     id = db.Column(db.Integer, db.ForeignKey('users.id'), primary_key=True)
 
     def __init__(self, firstname, lastname, username, email, password):
-        super().__init__(username, email, password, institution_id=None)
-        self.firstname = firstname
-        self.lastname = lastname
+        super().__init__(firstname, lastname, username, email, password, institution_id=None)
         self.role = 'admin'
 
 
@@ -71,9 +71,7 @@ class Scorer(User):
     id = db.Column(db.Integer, db.ForeignKey('users.id'), primary_key=True)
 
     def __init__(self, firstname, lastname, username, email, password):
-        super().__init__(username, email, password, institution_id=None)
-        self.firstname = firstname
-        self.lastname = lastname
+        super().__init__(firstname, lastname, username, email, password, institution_id=None)
         self.role = 'scorer'
 
 
@@ -85,9 +83,7 @@ class HR(User):
     id = db.Column(db.Integer, db.ForeignKey('users.id'), primary_key=True)
     
     def __init__(self, firstname, lastname, username, email, password, institution_id):
-        super().__init__(username, email, password, institution_id)
-        self.firstname = firstname
-        self.lastname = lastname
+        super().__init__(firstname, lastname, username, email, password, institution_id)
         self.role = 'hr'
         if not institution_id:
             raise ValueError("HR users must be assigned to an institution")
@@ -102,9 +98,7 @@ class PulseLeader(User):
     social_media_handle = db.Column(db.String(100))
 
     def __init__(self, firstname, lastname, username, email, password, institution_id):
-        super().__init__(username, email, password, institution_id)
-        self.firstname = firstname
-        self.lastname = lastname
+        super().__init__(firstname, lastname, username, email, password, institution_id)
         self.role = 'pulse_leader'
 
 
