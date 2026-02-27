@@ -11,7 +11,7 @@ def get_hr_stats(institution_id):
         .filter(Participant.institution_id == institution_id)\
         .join(Result).distinct(Registration.participant_id).count()
     participants=Participant.query.filter_by(institution_id=institution_id).all()
-    return{
+    return {
         "reg_count": total_reg,
         "part_count": participated,
         "no_show_count": total_reg - participated,
