@@ -1,11 +1,15 @@
-From App.models import User, Institution, Participant, Registration, Result, db
+from App.models import User, Institution, Participant, Registration, Result, db
+from App.database import db
 
 def get_admin_data():
     return Institution.query.all()
 
 def get_hr_stats(institution_id):
-    total_reg=Participant.query.filter_by(institution_id).count()
-    participated=db.session.query(Registration).join(Participant).filter(Participant.institution_id == institution_id).join(Result).distinct().count()
+    total_reg=Participant.query.filter_by(institution_id=institution_id).count()
+    participated = db.session.query(Registration)\
+        .join(Participant)\
+        .filter(Participant.institution_id == institution_id)\
+        .join(Result).distinct(Registration.participant_id).count()
     participants=Participant.query.filter_by(institution_id=institution_id).all()
     return{
         "reg_count": total_reg,
