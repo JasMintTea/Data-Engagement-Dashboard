@@ -3,9 +3,9 @@ services:
 - type: web
   name: flask-postgres-api
   env: python
-  repo: https://github.com/uwidcit/flaskmvc.git
+  repo: https://github.com/JasMintTea/Data-Engagement-Dashboard.git
   plan: free
-  branch: VinayakM
+  branch: VinayakM 
   healthCheckPath: /healthcheck
   buildCommand: "pip install -r requirements.txt"
   startCommand: "gunicorn wsgi:app"
