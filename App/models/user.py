@@ -188,6 +188,7 @@ class SeasonEvent(db.Model):
     __tablename__ = 'season_event'
     id = db.Column(db.Integer, primary_key=True)
     season_id = db.Column(db.Integer, db.ForeignKey('season.id'), nullable=False)
+    status = db.Column(db.String(20), default='active')    
     event_id = db.Column(db.Integer, db.ForeignKey('event.id'), nullable=False)
     start_date = db.Column(db.Date, nullable=True)
     end_date = db.Column(db.Date, nullable=True)
@@ -209,6 +210,7 @@ class Stage(db.Model):
     __tablename__ = 'stage'
     id = db.Column(db.Integer, primary_key=True)
     season_event_id = db.Column(db.Integer, db.ForeignKey('season_event.id'), nullable=False)
+    distance = db.Column(db.String(20), nullable=True)     
     stage_number = db.Column(db.Integer, nullable=True)
     location = db.Column(db.String(100), nullable=True)
     stage_date = db.Column(db.Date, nullable=True)

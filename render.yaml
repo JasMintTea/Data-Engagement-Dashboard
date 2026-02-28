@@ -5,7 +5,7 @@ services:
   env: python
   repo: https://github.com/uwidcit/flaskmvc.git
   plan: free
-  branch: main
+  branch: VinayakM
   healthCheckPath: /healthcheck
   buildCommand: "pip install -r requirements.txt"
   startCommand: "gunicorn wsgi:app"
