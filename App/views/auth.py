@@ -2,6 +2,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from flask_jwt_extended import jwt_required, current_user, unset_jwt_cookies, set_access_cookies, create_access_token
 from App.database import db
 from App.models import User
+from sqlalchemy import or_
 
 auth_views = Blueprint('auth_views', __name__, template_folder='../templates')
 
@@ -17,10 +18,11 @@ def identify_page():
 @auth_views.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        email = request.form.get('email')
+        identifier = request.form.get('email') or request.form.get('username')
         password = request.form.get('password')
 
-        user = User.query.filter_by(email=email).first()
+        # Allow login using either email or username
+        user = User.query.filter(or_(User.email == identifier, User.username == identifier)).first()
         if not user: 
             flash('User not found', 'danger')
             return redirect(url_for('auth_views.login'))
