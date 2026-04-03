@@ -43,7 +43,7 @@ def seed():
         for year, desc in seasons:
             season = Season.query.filter_by(year=year).first()
             if not season:
-                season = Season(year=year, description=desc)
+                season = Season(year=year, description=desc, status='active')
                 db.session.add(season)
                 print(f"  + Season: {year}")
         db.session.commit()
@@ -198,21 +198,6 @@ def seed():
         else:
             print("  - Scorer already exists")
 
-        # PULSE LEADER
-        if not PulseLeader.query.filter_by(email='pulse@cbtt.com').first():
-            pulse = PulseLeader(
-                firstname='Pulse',
-                lastname='Leader',
-                username='pulse_cbtt',
-                email='pulse@cbtt.com',
-                password='Pulse123!',
-                institution_id=cbtt.id
-            )
-            pulse.social_media_handle = '@CBTT_Pulse'
-            db.session.add(pulse)
-            print("  + PulseLeader: pulse@cbtt.com / Pulse123! (CBTT)")
-        else:
-            print("  - PulseLeader already exists")
 
         db.session.commit()
         print("Seeding complete!")

@@ -112,10 +112,12 @@ class Institution(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     code = db.Column(db.String(20), nullable=False, unique=True)
+    contact_person = db.Column(db.String(120))
 
-    def __init__(self, name, code):
+    def __init__(self, name, code, contact_person=None):
         self.name = name
         self.code = code
+        self.contact_person = contact_person
 
     def get_json(self):
         return {
@@ -166,10 +168,12 @@ class Season(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     year = db.Column(db.Integer, nullable=False, unique=True)
     description = db.Column(db.String(200))
+    status = db.Column(db.String(100), nullable=False, default='active')
 
-    def __init__(self, year, description=''):
+    def __init__(self, year, description='', status='active'):
         self.year = year
         self.description = description
+        self.status = status
 
 
 # -------------------- Event --------------------
