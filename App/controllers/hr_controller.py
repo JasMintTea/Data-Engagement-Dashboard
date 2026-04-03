@@ -115,7 +115,7 @@ def get_hr_stats(institution_id):
 
 
 def get_available_events(institution_id):
-    current_season = Season.query.order_by(Season.year.desc()).first()
+    current_season = Season.query.filter_by(status='active').first()
     if not current_season:
         return []
     season_events = SeasonEvent.query.filter_by(season_id=current_season.id).all()

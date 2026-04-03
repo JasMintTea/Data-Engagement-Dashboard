@@ -133,3 +133,15 @@ def upload_results():
     from App.controllers.hr_controller import get_available_events
     events = get_available_events(current_user.institution_id)   # scorers have no institution, but the function works
     return render_template('scorer/upload_results.html', events=events)
+
+@scorer_views.route('/scorer/flag-result/<int:result_id>', methods=['POST'])
+@jwt_required()
+def flag_result(result_id):
+    if current_user.role not in ['admin', 'scorer']:
+        return "Access Denied", 403
+    
+    result = Result.query.get_or_404(result_id)
+    result.is_error = not result.is_error  # Toggle the flag
+    db.session.commit()
+    flash('Result flag updated!', 'success')
+    return redirect(url_for('scorer_views.dashboard'))
