@@ -569,8 +569,7 @@ class TestAddParticipantRoute:
         )
         # Should redirect on success
         assert resp.status_code in (200, 302)
-        with seed["inst1_id"] and True:
-            pass  # participant created checked via DB below
+        # participant creation is verified in test_add_participant_persists
 
     def test_add_participant_persists(self, client, test_app, seed):
         token = get_token(client, seed["hr1_email"], "Hr123!")
