@@ -187,39 +187,3 @@ If you are running into errors in gitpod when updateding your github actions fil
 
 If you are adding models you may need to migrate the database with the commands given in the previous database migration section. Alternateively you can delete you database file.
 
-# Scorer UI and CSV import (added)
-
-This project supports scorer flow via:
-
-- `/scorer/dashboard` — Live results, flag/unflag error rows toggles `Result.is_error`.
-- `/scorer/upload-results` — CSV import for a selected season event.
-
-## CSV format
-
-The CSV must have headers:
-
-- `participant_id` (integer, from `Registration.participant_id`)
-- `finish_time` string, format `HH:MM:SS` (or other string time as needed)
-- `placement` integer (optional)
-
-Example:
-
-```csv
-participant_id,finish_time,placement
-1,00:12:34,1
-2,00:13:22,2
-3,00:13:40,3
-```
-
-## Quick manual test
-
-1. Seed data (if not already):
-   - `python seed.py` (and optionally `python seed_from_excel.py`)
-2. Start app:
-   - `flask run` (or `python run.py`)
-3. Login as scorer:
-   - email: `scorer@carifin.com`
-   - password: `Scorer123!`
-4. Go to `/scorer/upload-results`, choose event, choose `sample_scorer_results.csv`, and upload.
-5. Go to `/scorer/dashboard` and verify rows appear, then click `Flag Error`/`Clear Flag`.
-
