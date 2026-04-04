@@ -270,16 +270,18 @@ def import_season_excel():
             )
             return redirect(url_for("admin_views.dashboard"))
 
-        df = df[df[col_team].notna() & df[col_first].notna() & df[col_last].notna()]
+        df = df[
+            df[col_team].notna() & df[col_first].notna() & df[col_last].notna()
+        ].copy()
+        df.reset_index(drop=True, inplace=True)
 
         stage_nums = [
             n
             for n in range(1, 10)
             if col_map.get(f"TIME{n}") and df[col_map[f"TIME{n}"]].notna().any()
         ]
-        if not stage_nums:
-            stage_nums = []
 
+        # ── Resolve event & season-event ──────────────────────────────────────
         event = Event.query.filter_by(name="Urban Challenge").first()
         if not event:
             event = Event.query.first()
@@ -314,11 +316,13 @@ def import_season_excel():
                     )
                 )
         db.session.commit()
+
         stage_by_num = {
             s.stage_number: s
             for s in Stage.query.filter_by(season_event_id=se.id).all()
         }
 
+        # ── Institution cache ─────────────────────────────────────────────────
         inst_cache = {}
         for raw in df[col_team].dropna().unique():
             code = TEAM_MAP.get(str(raw).strip().lower())
@@ -327,7 +331,31 @@ def import_season_excel():
                 if inst:
                     inst_cache[code] = inst
 
+        # ── Pre-load existing participants and registrations into memory ───────
+        # This eliminates per-row DB queries — the single biggest speedup
+        existing_participants = {
+            (p.first_name, p.last_name, p.institution_id): p
+            for p in Participant.query.filter(
+                Participant.institution_id.in_([i.id for i in inst_cache.values()])
+            ).all()
+        }
+        existing_registrations = {
+            reg.participant_id: reg
+            for reg in Registration.query.filter_by(season_event_id=se.id).all()
+        }
+        existing_results = {
+            (r.registration_id, r.stage_id)
+            for r in db.session.query(Result.registration_id, Result.stage_id)
+            .join(Registration)
+            .filter(Registration.season_event_id == se.id)
+            .all()
+        }
+
+        # ── Import rows — no DB queries inside the loop ───────────────────────
         created = registered = results_added = skipped = 0
+        new_participants = []
+        new_registrations = []
+        new_results = []
 
         for _, row in df.iterrows():
             try:
@@ -366,9 +394,9 @@ def import_season_excel():
                 if div == "nan":
                     div = None
 
-                p = Participant.query.filter_by(
-                    first_name=first, last_name=last, institution_id=inst.id
-                ).first()
+                # Look up participant in memory — no DB query
+                p_key = (first, last, inst.id)
+                p = existing_participants.get(p_key)
                 if not p:
                     p = Participant(
                         first_name=first,
@@ -379,20 +407,34 @@ def import_season_excel():
                         sex=sex,
                         division=div,
                     )
-                    db.session.add(p)
-                    db.session.flush()
+                    new_participants.append(p)
+                    existing_participants[p_key] = p
                     created += 1
 
-                reg = Registration.query.filter_by(
-                    participant_id=p.id, season_event_id=se.id
-                ).first()
+                # Look up registration in memory — no DB query
+                # p.id may be None for new participants; handle after flush
+                new_participants_need_flush = any(
+                    np_.id is None for np_ in new_participants
+                )
+                if new_participants_need_flush:
+                    db.session.add_all(new_participants)
+                    db.session.flush()  # get IDs for new participants
+                    new_participants = []
+
+                reg = existing_registrations.get(p.id)
                 if not reg:
                     reg = Registration(
                         participant_id=p.id, season_event_id=se.id, division=div
                     )
-                    db.session.add(reg)
-                    db.session.flush()
+                    new_registrations.append(reg)
+                    existing_registrations[p.id] = reg
                     registered += 1
+
+                # Results — check in-memory set
+                if new_registrations:
+                    db.session.add_all(new_registrations)
+                    db.session.flush()  # get IDs for new registrations
+                    new_registrations = []
 
                 for snum in stage_nums:
                     time_col = col_map.get(f"TIME{snum}")
@@ -404,23 +446,48 @@ def import_season_excel():
                     stage = stage_by_num.get(snum)
                     if not stage:
                         continue
-                    if not Result.query.filter_by(
-                        registration_id=reg.id, stage_id=stage.id
-                    ).first():
-                        db.session.add(
+                    r_key = (reg.id, stage.id)
+                    if r_key not in existing_results:
+                        new_results.append(
                             Result(
                                 registration_id=reg.id,
                                 stage_id=stage.id,
                                 finish_time=str(time_val).strip(),
                             )
                         )
+                        existing_results.add(r_key)
                         results_added += 1
 
             except Exception as row_error:
                 db.session.rollback()
                 print(f"[IMPORT] Skipped row due to error: {row_error}")
                 skipped += 1
+                # Rebuild caches after rollback
+                existing_participants = {
+                    (p.first_name, p.last_name, p.institution_id): p
+                    for p in Participant.query.filter(
+                        Participant.institution_id.in_(
+                            [i.id for i in inst_cache.values()]
+                        )
+                    ).all()
+                }
+                existing_registrations = {
+                    reg.participant_id: reg
+                    for reg in Registration.query.filter_by(season_event_id=se.id).all()
+                }
+                new_participants = []
+                new_registrations = []
                 continue
+
+        # Final flush and single commit for all remaining objects
+        if new_participants:
+            db.session.add_all(new_participants)
+            db.session.flush()
+        if new_registrations:
+            db.session.add_all(new_registrations)
+            db.session.flush()
+        if new_results:
+            db.session.add_all(new_results)
 
         db.session.commit()
 
