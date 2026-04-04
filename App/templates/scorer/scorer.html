@@ -80,8 +80,8 @@
             <tbody>
                 {% for res in results %}
                 <tr class="{{'row-error' if res.is_error else''}}">
-                     <td>{{res.registration.participation.first_name}} {{res.registration.participation.last_name}}</td>
-                     <td>{{res.result_value}}</td>
+                     <td>{{res.registration.participant.first_name}} {{res.registration.participant.last_name}}</td>
+                     <td>{{res.finish_time}}</td>
                      <td>
                         {% if res.is_error %}
                         <span class="tag-error">ERROR FLAG</span>
@@ -91,7 +91,7 @@
                      </td>
 
                      <td>
-                        <form actions="{{url_for('scorer.flag_result', result_id=res.id)}}" method="POST">
+                        <form action="{{url_for('scorer_views.flag_result', result_id=res.id)}}" method="POST">
                             <button type="submit" class="btn-flag">
                                 {{'Clear Flag' if res.is_error else 'Flag Error'}}
                             </button>
