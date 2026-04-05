@@ -90,6 +90,20 @@
                 </div>
                 {% endif %}
 
+                {% if current_user and current_user.role == 'scorer' %}
+                <div class="nav-section">
+                    <div class="nav-section-title">Scorer</div>
+                    <a href="{{ url_for('scorer_views.dashboard') }}" class="nav-item">
+                        <span class="material-icons">dashboard</span>
+                        <span class="nav-text">Dashboard</span>
+                    </a>
+                    <a href="{{ url_for('scorer_views.upload_results') }}" class="nav-item">
+                        <span class="material-icons">upload_file</span>
+                        <span class="nav-text">Upload Results</span>
+                    </a>
+                </div>
+                {% endif %}
+
                 <div class="nav-section">
                     <div class="nav-section-title">Account</div>
                     <a href="{{ url_for('auth_views.logout') }}" class="nav-item">
