@@ -90,5 +90,34 @@ with app.app_context():
         db.session.commit()
         print("Admin user created")
 
+    # Create test HR if not exists
+    from App.models import HR, Institution
+    if not HR.query.filter_by(email='test-hr@carifin.com').first():
+        inst = Institution.query.filter_by(code='CBTT').first()
+        if inst:
+            test_hr = HR(
+                firstname='Test',
+                lastname='HR',
+                username='test_hr',
+                email='test-hr@carifin.com',
+                password='Hr123!',
+                institution_id=inst.id
+            )
+            db.session.add(test_hr)
+            print('Test HR created')
+
+    # Create test scorer if not exists
+    from App.models import Scorer
+    if not Scorer.query.filter_by(email='test-scorer@carifin.com').first():
+        test_scorer = Scorer(
+            firstname='Test',
+            lastname='Scorer',
+            username='test_scorer',
+            email='test-scorer@carifin.com',
+            password='Scorer123!'
+        )
+        db.session.add(test_scorer)
+        print('Test Scorer created')
+
 if __name__ == "__main__":
     app.run()
