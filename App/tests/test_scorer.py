@@ -119,3 +119,60 @@ def test_scorer_dashboard_upload_and_flag(client):
     with client.application.app_context():
         result = Result.query.get(result.id)
         assert result.is_error is False
+
+
+def test_scorer_csv_upload_multiple_events(client):
+    headers = scorer_headers(client)
+
+    with client.application.app_context():
+        participant = Participant.query.first()
+        participant_id = participant.id
+        season = Season.query.first()
+        existing_se = SeasonEvent.query.first()
+        existing_se_id = existing_se.id
+
+        second_event = Event(name='City Sprint', event_type='run')
+        db.session.add(second_event)
+        db.session.flush()
+
+        second_se = SeasonEvent(season_id=season.id, event_id=second_event.id, start_date=date(2025, 4, 1), end_date=date(2025, 4, 1))
+        db.session.add(second_se)
+        db.session.flush()
+
+        second_stage = Stage(season_event_id=second_se.id, stage_number=1, distance='1K', location='Sprint Track', stage_date=date(2025, 4, 1))
+        db.session.add(second_stage)
+        db.session.flush()
+
+        second_registration = Registration(participant_id=participant_id, season_event_id=second_se.id)
+        db.session.add(second_registration)
+        db.session.commit()
+        second_registration_id = second_registration.id
+        second_se_id = second_se.id
+        second_stage_id = second_stage.id
+
+    csv_content = (
+        b'participant_id,season_event_id,finish_time,placement\n'
+        + str(participant_id).encode() + b',' + str(second_se_id).encode() + b',00:03:12,1\n'
+        + str(participant_id).encode() + b',' + str(existing_se_id).encode() + b',00:12:34,2\n'
+    )
+    csv_file = io.BytesIO(csv_content)
+    data = {
+        'season_event_id': '',
+        'csv_file': (csv_file, 'results.csv')
+    }
+
+    resp = client.post('/scorer/upload-results', headers=headers, data=data, content_type='multipart/form-data', follow_redirects=True)
+    assert resp.status_code == 200
+    assert b'Successfully imported 2 results' in resp.data
+
+    with client.application.app_context():
+        first_result = Result.query.filter_by(registration_id=second_registration_id, stage_id=second_stage_id).first()
+        assert first_result is not None
+        assert first_result.finish_time == '00:03:12'
+        assert first_result.placement == 1
+
+        original_registration = Registration.query.filter_by(season_event_id=existing_se_id, participant_id=participant_id).first()
+        second_result = Result.query.filter_by(registration_id=original_registration.id).first()
+        assert second_result is not None
+        assert second_result.finish_time == '00:12:34'
+        assert second_result.placement == 2
