@@ -1,0 +1,233 @@
+{% extends "base.html" %}
+{% block title %}Institution Report – {{ institution.name }}{% endblock %}
+{% block breadcrumb %}HR &rsaquo; Report{% endblock %}
+{% block extra_css %}
+<style>
+  @media print {
+    .no-print { display: none; }
+    body { margin: 0; padding: 0; }
+    .report-container { margin: 0; padding: 0; }
+    .page-break { page-break-before: always; }
+    canvas { max-width: 100%; }
+  }
+  .report-header {
+    text-align: center;
+    margin-bottom: 24px;
+    border-bottom: 2px solid var(--primary-dark);
+    padding-bottom: 16px;
+  }
+  .report-header h1 { margin: 0; color: var(--primary-dark); }
+  .report-header p { color: var(--text-muted); margin-top: 8px; }
+  .metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 32px;
+  }
+  .metric-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    text-align: center;
+  }
+  .metric-value {
+    font-size: 32px;
+    font-weight: 700;
+    color: var(--primary-dark);
+  }
+  .metric-label {
+    font-size: 13px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .charts-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 24px;
+    margin-bottom: 32px;
+  }
+  .chart-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+  }
+  .chart-card h3 {
+    font-size: 16px;
+    margin-bottom: 16px;
+    text-align: center;
+  }
+  canvas { max-height: 250px; width: 100%; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 16px;
+  }
+  th, td {
+    border: 1px solid var(--border);
+    padding: 8px 12px;
+    text-align: left;
+  }
+  th { background: var(--accent-light); font-weight: 600; }
+  .badge {
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 500;
+  }
+  .badge-active { background: #E8F5E9; color: #2E7D32; }
+  .badge-closed { background: #FFEBEE; color: #C62828; }
+  .print-button {
+    text-align: right;
+    margin-bottom: 16px;
+  }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="report-container">
+  <div class="print-button no-print">
+    <button class="btn" onclick="window.print();">🖨️ Print / Save as PDF</button>
+    <a href="{{ url_for('hr_views.dashboard') }}" class="btn btn-ghost">Back to Dashboard</a>
+  </div>
+
+  <div class="report-header">
+    <h1>{{ institution.name }} – Performance Report</h1>
+    <p>Generated on {{ report_date }}</p>
+  </div>
+
+  <div class="metrics-grid">
+    <div class="metric-card">
+      <div class="metric-value">{{ total_participants }}</div>
+      <div class="metric-label">Total Participants</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-value">{{ reg_count }}</div>
+      <div class="metric-label">Registered This Season</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-value">{{ part_count }}</div>
+      <div class="metric-label">Participated</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-value">{{ no_show_count }}</div>
+      <div class="metric-label">No‑Shows</div>
+    </div>
+  </div>
+
+  <div class="charts-row">
+    <div class="chart-card">
+      <h3>Participation Status</h3>
+      <canvas id="statusChart"></canvas>
+    </div>
+    <div class="chart-card">
+      <h3>Participants by Division</h3>
+      <canvas id="divisionChart"></canvas>
+    </div>
+  </div>
+
+  {% if stage_completion %}
+  <div class="chart-card" style="margin-bottom: 32px;">
+    <h3>Urban Challenge – Stage Completion</h3>
+    <canvas id="stageChart"></canvas>
+  </div>
+  {% endif %}
+
+  <h3>Participant Roster</h3>
+  <div style="overflow-x: auto;">
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Email</th>
+          <th>Division</th>
+          <th>Status</th>
+        </thead>
+      <tbody>
+        {% for p in participants %}
+        <tr>
+          <td>{{ p.first_name }} {{ p.last_name }}</td>
+          <td>{{ p.email or '-' }}</td>
+          <td>{{ p.division or '-' }}</td>
+          <td>
+            {% if p.has_result %}
+            <span class="badge badge-active">Participated</span>
+            {% else %}
+            <span class="badge badge-closed">No-Show</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="4" style="text-align: center;">No participants found.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+  // Participation Status Pie Chart
+  const ctxStatus = document.getElementById('statusChart').getContext('2d');
+  new Chart(ctxStatus, {
+    type: 'pie',
+    data: {
+      labels: ['Participated', 'No-Show'],
+      datasets: [{
+        data: [{{ part_count }}, {{ no_show_count }}],
+        backgroundColor: ['#2E7D32', '#C62828'],
+        borderWidth: 0
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { position: 'bottom' } }
+    }
+  });
+
+  // Division Bar Chart
+  const divisionLabels = {{ division_counts.keys()|list|tojson }};
+  const divisionData = {{ division_counts.values()|list|tojson }};
+  const ctxDiv = document.getElementById('divisionChart').getContext('2d');
+  new Chart(ctxDiv, {
+    type: 'bar',
+    data: {
+      labels: divisionLabels,
+      datasets: [{
+        label: 'Number of Participants',
+        data: divisionData,
+        backgroundColor: '#0C5069',
+        borderRadius: 6
+      }]
+    },
+    options: {
+      responsive: true,
+      scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+    }
+  });
+
+  {% if stage_completion %}
+  const stageLabels = {{ stage_completion|map(attribute='stage')|list|tojson }};
+  const stageData = {{ stage_completion|map(attribute='percentage')|list|tojson }};
+  const ctxStage = document.getElementById('stageChart').getContext('2d');
+  new Chart(ctxStage, {
+    type: 'bar',
+    data: {
+      labels: stageLabels,
+      datasets: [{
+        label: 'Completion Rate (%)',
+        data: stageData,
+        backgroundColor: '#007489',
+        borderRadius: 6
+      }]
+    },
+    options: {
+      responsive: true,
+      scales: { y: { beginAtZero: true, max: 100, ticks: { callback: (v) => v + '%' } } }
+    }
+  });
+  {% endif %}
+</script>
+{% endblock %}

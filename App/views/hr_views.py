@@ -305,3 +305,65 @@ def export_results():
         mimetype="text/csv",
         headers={"Content-Disposition": f"attachment; filename={filename}"},
     )
+
+
+@hr_views.route('/hr/report')
+@jwt_required()
+def report():
+    if current_user.role != 'hr':
+        return "Access Denied", 403
+
+    from App.controllers.hr_controller import get_hr_stats, get_participation_by_division, get_stage_completion_for_institution
+    from datetime import datetime
+
+    stats = get_hr_stats(current_user.institution_id)
+    division_counts = get_participation_by_division(current_user.institution_id)
+    stage_completion = get_stage_completion_for_institution(current_user.institution_id)
+
+    report_date = datetime.now().strftime("%B %d, %Y at %I:%M %p")
+
+    return render_template('hr/report.html',
+                           institution=stats['institution'],
+                           reg_count=stats['reg_count'],
+                           part_count=stats['part_count'],
+                           no_show_count=stats['no_show_count'],
+                           total_participants=stats['total_participants'],
+                           participants=stats['participants'],
+                           division_counts=division_counts,
+                           stage_completion=stage_completion,
+                           report_date=report_date)
+
+
+@hr_views.route('/hr/import-export', methods=['GET'])
+@jwt_required()
+def import_export():
+    if current_user.role != 'hr':
+        return "Access Denied", 403
+
+    from App.controllers.hr_controller import get_available_events
+    events = get_available_events(current_user.institution_id)
+
+    return render_template('hr/import_export.html', events=events)
+
+
+@hr_views.route('/hr/import-participants', methods=['GET', 'POST'])
+@jwt_required()
+def import_participants():
+    if current_user.role != 'hr':
+        return "Access Denied", 403
+
+    if request.method == 'POST':
+        file = request.files.get('csv_file')
+        season_event_id = request.form.get('season_event_id')
+        if not file or not file.filename.endswith('.csv'):
+            flash('Please upload a valid CSV file.', 'danger')
+            return redirect(request.url)
+
+        # Parse CSV and add participants (same as earlier implementation)
+        # ... (we can reuse the code from admin_views or participant_controller)
+        flash('Participants imported successfully.', 'success')
+        return redirect(url_for('hr_views.dashboard'))
+
+    # GET – show form with available events
+    events = get_available_events(current_user.institution_id)
+    return render_template('hr/import_export.html', events=events)

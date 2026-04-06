@@ -197,3 +197,73 @@ def register_participants(participant_ids, season_event_id):
             count += 1
     db.session.commit()
     return count
+
+
+
+def get_participation_by_division(institution_id, season_id=None):
+    """Return counts of participants per division for an institution."""
+    from App.models import Participant, Registration, SeasonEvent
+    if not season_id:
+        current_season = Season.query.order_by(Season.year.desc()).first()
+        if not current_season:
+            return {}
+        season_id = current_season.id
+
+    # Get all registrations for this institution in the season
+    registrations = db.session.query(Participant.division)\
+        .join(Registration)\
+        .join(SeasonEvent)\
+        .filter(Participant.institution_id == institution_id)\
+        .filter(SeasonEvent.season_id == season_id)\
+        .all()
+
+    counts = {}
+    for (division,) in registrations:
+        div = division or 'Unknown'
+        counts[div] = counts.get(div, 0) + 1
+    return counts
+
+def get_stage_completion_for_institution(institution_id, season_id=None):
+    """Get stage completion counts for Urban Challenge for this institution."""
+    from App.models import Event, SeasonEvent, Stage, Registration, Result
+    urban = Event.query.filter_by(name='Urban Challenge').first()
+    if not urban:
+        return []
+
+    if not season_id:
+        current_season = Season.query.order_by(Season.year.desc()).first()
+        if not current_season:
+            return []
+        season_id = current_season.id
+
+    season_event = SeasonEvent.query.filter_by(season_id=season_id, event_id=urban.id).first()
+    if not season_event:
+        return []
+
+    stages = Stage.query.filter_by(season_event_id=season_event.id).order_by(Stage.stage_number).all()
+    if not stages:
+        return []
+
+    # Get all registrations for this institution for this event
+    registrations = db.session.query(Registration.id)\
+        .join(Participant)\
+        .filter(Participant.institution_id == institution_id)\
+        .filter(Registration.season_event_id == season_event.id)\
+        .all()
+    reg_ids = [r.id for r in registrations]
+    total_reg = len(reg_ids)
+
+    completion = []
+    for stage in stages:
+        # Count results for this stage among those registrations
+        completed = Result.query.filter(
+            Result.registration_id.in_(reg_ids),
+            Result.stage_id == stage.id
+        ).count()
+        completion.append({
+            'stage': stage.stage_number,
+            'completed': completed,
+            'total': total_reg,
+            'percentage': round((completed / total_reg * 100), 1) if total_reg else 0
+        })
+    return completion

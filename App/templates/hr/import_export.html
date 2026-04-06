@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Import / Export – HR{% endblock %}
+{% block breadcrumb %}HR &rsaquo; Import / Export{% endblock %}
+{% block content %}
+
+<div class="card">
+  <div class="card-header">
+    <span class="material-icons" style="font-size: 48px;">cloud_upload</span>
+    Export Institution Report</div>
+  <div class="form-body">
+    <p>Generate a complete performance report for your institution, including participation metrics and participant roster.</p>
+    <a href="{{ url_for('hr_views.report') }}" class="btn" target="_blank">Generate Report</a>
+    <small style="display: block; margin-top: 8px;">The report will open in a new tab. You can print or save it as PDF.</small>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <span class="material-icons" style="font-size: 48px;">cloud_download</span>
+    Import Participants (CSV)</div>
+  <div class="form-body">
+    <form method="POST" enctype="multipart/form-data" action="{{ url_for('hr_views.import_participants') }}">
+      <div class="form-row">
+        <span class="form-label">CSV File:</span>
+        <input type="file" name="csv_file" accept=".csv" required>
+        <small>Columns: first_name, last_name, email (optional), division (optional)</small>
+      </div>
+      <div class="form-row">
+        <span class="form-label">Event (optional):</span>
+        <select name="season_event_id">
+          <option value="">-- None (only import participants) --</option>
+          {% for event in events %}
+          <option value="{{ event.id }}">{{ event.name }} ({{ event.date }})</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="btn">Upload & Import</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% endblock %}
