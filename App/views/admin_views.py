@@ -5,6 +5,7 @@ from App.controllers.admin_controller import (
     create_user_by_admin,
     generate_temp_password,
 )
+from App.controllers.participant_controller import clean_name, clean_email
 from App.controllers.user_controller import generate_username
 from App.controllers.admin_controller import (
     get_admin_data,
@@ -270,6 +271,7 @@ def import_season_excel():
             )
             return redirect(url_for("admin_views.dashboard"))
 
+        # Filter rows with valid names
         df = df[
             df[col_team].notna() & df[col_first].notna() & df[col_last].notna()
         ].copy()
@@ -332,7 +334,6 @@ def import_season_excel():
                     inst_cache[code] = inst
 
         # ── Pre-load existing participants and registrations into memory ───────
-        # This eliminates per-row DB queries — the single biggest speedup
         existing_participants = {
             (p.first_name, p.last_name, p.institution_id): p
             for p in Participant.query.filter(
@@ -364,15 +365,19 @@ def import_season_excel():
                     skipped += 1
                     continue
 
-                first = str(row[col_first]).strip()
-                last = str(row[col_last]).strip()
+                # CLEAN NAMES HERE
+                first = clean_name(str(row[col_first]).strip())
+                last = clean_name(str(row[col_last]).strip())
+
                 if not first or not last or first == "nan" or last == "nan":
                     skipped += 1
                     continue
 
                 inst = inst_cache[code]
+                
+                # CLEAN EMAIL HERE
                 email = (
-                    str(row[col_email]).strip()
+                    clean_email(str(row[col_email]).strip())
                     if col_email and pd.notna(row.get(col_email))
                     else None
                 )
@@ -412,13 +417,12 @@ def import_season_excel():
                     created += 1
 
                 # Look up registration in memory — no DB query
-                # p.id may be None for new participants; handle after flush
                 new_participants_need_flush = any(
                     np_.id is None for np_ in new_participants
                 )
                 if new_participants_need_flush:
                     db.session.add_all(new_participants)
-                    db.session.flush()  # get IDs for new participants
+                    db.session.flush()
                     new_participants = []
 
                 reg = existing_registrations.get(p.id)
@@ -433,7 +437,7 @@ def import_season_excel():
                 # Results — check in-memory set
                 if new_registrations:
                     db.session.add_all(new_registrations)
-                    db.session.flush()  # get IDs for new registrations
+                    db.session.flush()
                     new_registrations = []
 
                 for snum in stage_nums:
@@ -504,7 +508,7 @@ def import_season_excel():
         print(f"[IMPORT] Fatal error: {e}")
         flash(f"Import failed: {str(e)}", "danger")
         return redirect(url_for("admin_views.dashboard"))
-
+    
 
 @admin_views.route("/admin/system/institutions")
 @jwt_required()
@@ -616,3 +620,206 @@ def notifications():
     if current_user.role != "admin":
         return "Access Denied", 403
     return render_template("admin/coming_soon.html", title="Notifications")
+
+
+
+# ===================================================================================
+#
+# ===================================================================================
+
+
+@admin_views.route("/admin/import-export")
+@jwt_required()
+def import_export():
+    if current_user.role != "admin":
+        return "Access Denied", 403
+    
+    seasons = Season.query.order_by(Season.year.desc()).all()
+    institutions = Institution.query.filter_by(status='active').all()
+    events = Event.query.all()
+    
+    return render_template(
+        "admin/import_export.html",
+        seasons=seasons,
+        institutions=institutions,
+        events=events
+    )
+
+
+@admin_views.route("/admin/export/roster")
+@jwt_required()
+def export_roster():
+    """Export participant roster as CSV."""
+    if current_user.role != "admin":
+        return "Access Denied", 403
+    
+    import csv
+    import io
+    from flask import Response
+    
+    season_year = request.args.get('season')
+    institution_code = request.args.get('institution')
+    
+    query = Participant.query.join(Institution)
+    
+    if season_year and season_year != 'all':
+        # Filter participants who have registrations in that season
+        season = Season.query.filter_by(year=season_year).first()
+        if season:
+            query = query.join(Registration).join(SeasonEvent).filter(SeasonEvent.season_id == season.id)
+    
+    if institution_code and institution_code != 'all':
+        query = query.filter(Institution.code == institution_code)
+    
+    participants = query.distinct().all()
+    
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(['First Name', 'Last Name', 'Email', 'Institution', 'Division', 'Sex', 'Birth Date'])
+    
+    for p in participants:
+        writer.writerow([
+            p.first_name,
+            p.last_name,
+            p.email or '',
+            p.institution.name if p.institution else '',
+            p.division or '',
+            p.sex or '',
+            p.birth_date.isoformat() if p.birth_date else ''
+        ])
+    
+    output.seek(0)
+    filename = f"roster_{season_year or 'all'}_{institution_code or 'all'}.csv"
+    return Response(
+        output.getvalue(),
+        mimetype="text/csv",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )
+
+
+@admin_views.route("/admin/export/results")
+@jwt_required()
+def export_results():
+    """Export results as CSV."""
+    if current_user.role != "admin":
+        return "Access Denied", 403
+    
+    import csv
+    import io
+    from flask import Response
+    
+    season_year = request.args.get('season')
+    event_id = request.args.get('event')
+    
+    query = db.session.query(
+        Participant.first_name,
+        Participant.last_name,
+        Institution.code,
+        Event.name.label('event_name'),
+        Stage.stage_number,
+        Result.finish_time,
+        Result.placement
+    ).join(Registration, Participant.id == Registration.participant_id)\
+     .join(SeasonEvent, Registration.season_event_id == SeasonEvent.id)\
+     .join(Event, SeasonEvent.event_id == Event.id)\
+     .join(Result, Registration.id == Result.registration_id)\
+     .join(Stage, Result.stage_id == Stage.id)\
+     .join(Institution, Participant.institution_id == Institution.id)
+    
+    if season_year and season_year != 'all':
+        season = Season.query.filter_by(year=season_year).first()
+        if season:
+            query = query.filter(SeasonEvent.season_id == season.id)
+    
+    if event_id and event_id != 'all':
+        query = query.filter(Event.id == event_id)
+    
+    results = query.order_by(Institution.code, Event.name, Stage.stage_number).all()
+    
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(['First Name', 'Last Name', 'Institution', 'Event', 'Stage', 'Finish Time', 'Placement'])
+    
+    for r in results:
+        writer.writerow(list(r))
+    
+    output.seek(0)
+    filename = f"results_{season_year or 'all'}_event_{event_id or 'all'}.csv"
+    return Response(
+        output.getvalue(),
+        mimetype="text/csv",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )
+
+
+@admin_views.route("/admin/import/participants-csv", methods=["POST"])
+@jwt_required()
+def import_participants_csv():
+    """Import participants from CSV file (admin version)."""
+    if current_user.role != "admin":
+        return "Access Denied", 403
+    
+    file = request.files.get('csv_file')
+    if not file or not file.filename.endswith('.csv'):
+        flash('Please upload a valid CSV file.', 'danger')
+        return redirect(url_for('admin_views.import_export'))
+    
+    import csv
+    import io
+    
+    stream = io.StringIO(file.stream.read().decode('utf-8-sig'))
+    reader = csv.DictReader(stream)
+    
+    created = 0
+    skipped = 0
+    errors = []
+    
+    for row_num, row in enumerate(reader, start=2):
+        try:
+            first = clean_name(row.get('first_name', '').strip())
+            last = clean_name(row.get('last_name', '').strip())
+            email = clean_email(row.get('email', '').strip()) if row.get('email') else None
+            inst_code = row.get('institution_id', '').strip()
+            
+            if not first or not last or not inst_code:
+                skipped += 1
+                continue
+            
+            # Find institution by code
+            inst = Institution.query.filter_by(code=inst_code.upper()).first()
+            if not inst:
+                errors.append(f"Row {row_num}: Institution '{inst_code}' not found")
+                skipped += 1
+                continue
+            
+            # Check for existing participant
+            existing = Participant.query.filter_by(
+                first_name=first,
+                last_name=last,
+                institution_id=inst.id
+            ).first()
+            
+            if not existing:
+                p = Participant(
+                    first_name=first,
+                    last_name=last,
+                    email=email,
+                    institution_id=inst.id
+                )
+                db.session.add(p)
+                created += 1
+            else:
+                skipped += 1
+                
+        except Exception as e:
+            errors.append(f"Row {row_num}: {str(e)}")
+            skipped += 1
+    
+    db.session.commit()
+    
+    if errors:
+        flash(f'Imported {created}, skipped {skipped}. Errors: {"; ".join(errors[:3])}', 'warning')
+    else:
+        flash(f'✓ Successfully imported {created} participants. Skipped {skipped} duplicates.', 'success')
+    
+    return redirect(url_for('admin_views.import_export'))

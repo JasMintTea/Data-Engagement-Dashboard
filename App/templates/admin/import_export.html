@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+{% block title %}Import / Export{% endblock %}
+{% block breadcrumb %}Admin &rsaquo; Import / Export{% endblock %}
+{% block content %}
+
+<div class="metrics-grid" style="margin-bottom: 24px;">
+  <div class="metric-card">
+    <div class="metric-value">
+        <span class="material-icons" style="font-size: 48px;">cloud_upload</span>
+    </div>
+    <div class="metric-label">Import Data</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-value">
+        <span class="material-icons" style="font-size: 48px;">cloud_download</span>
+    </div>
+    <div class="metric-label">Export Data</div>
+  </div>
+</div>
+
+<div class="charts-row">
+  <!-- IMPORT SECTION -->
+  <div class="chart-container">
+    <div class="chart-header">Import Data</div>
+    <div class="form-body">
+      <!-- Import Season Excel -->
+      <div class="form-section" style="margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid var(--border);">
+        <h3 style="margin-bottom: 12px;">Import Season Registration File</h3>
+        <form method="POST" enctype="multipart/form-data" action="{{ url_for('admin_views.import_season_excel') }}">
+          <div class="form-row">
+            <span class="form-label">Select Season:</span>
+            <select name="season_year" required>
+              <option value="">-- Select Season --</option>
+              {% for season in seasons %}
+              <option value="{{ season.year }}">{{ season.year }} ({{ season.status }})</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="form-row">
+            <span class="form-label">Excel File:</span>
+            <input type="file" name="excel_file" accept=".xlsx, .xls" required>
+            <small>Columns: First Name, Last Name, Team Name, Email (optional), etc.</small>
+          </div>
+          <div class="form-actions" style="padding-left: 0;">
+            <button type="submit" class="btn">Import Season Data</button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Import Participants CSV (HR-style, admin version) -->
+      <div class="form-section" style="margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid var(--border);">
+        <h3 style="margin-bottom: 12px;">Import Participants (CSV)</h3>
+        <form method="POST" enctype="multipart/form-data" action="{{ url_for('admin_views.import_participants_csv') }}">
+          <div class="form-row">
+            <span class="form-label">CSV File:</span>
+            <input type="file" name="csv_file" accept=".csv" required>
+            <small>Columns: first_name, last_name, email (optional), institution_id</small>
+          </div>
+          <div class="form-actions" style="padding-left: 0;">
+            <button type="submit" class="btn">Import Participants</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- EXPORT SECTION -->
+  <div class="chart-container">
+    <div class="chart-header">Export Data</div>
+    <div class="form-body">
+      <!-- Export Master Roster -->
+      <div class="form-section" style="margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid var(--border);">
+        <h3 style="margin-bottom: 12px;">Export Master Roster</h3>
+        <div class="form-row">
+          <span class="form-label">Season:</span>
+          <select id="export_season">
+            <option value="all">All Seasons</option>
+            {% for season in seasons %}
+            <option value="{{ season.year }}">{{ season.year }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-row">
+          <span class="form-label">Institution:</span>
+          <select id="export_institution">
+            <option value="all">All Institutions</option>
+            {% for inst in institutions %}
+            <option value="{{ inst.code }}">{{ inst.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-actions" style="padding-left: 0;">
+          <button class="btn btn-ghost" onclick="exportRoster()">Export Participants</button>
+        </div>
+      </div>
+
+      <!-- Export Results -->
+      <div class="form-section" style="margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid var(--border);">
+        <h3 style="margin-bottom: 12px;">Export Results</h3>
+        <div class="form-row">
+          <span class="form-label">Season:</span>
+          <select id="results_season">
+            <option value="all">All Seasons</option>
+            {% for season in seasons %}
+            <option value="{{ season.year }}">{{ season.year }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-row">
+          <span class="form-label">Event:</span>
+          <select id="results_event">
+            <option value="all">All Events</option>
+            {% for event in events %}
+            <option value="{{ event.id }}">{{ event.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-actions" style="padding-left: 0;">
+          <button class="btn btn-ghost" onclick="exportResults()">Export Results</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  function exportRoster() {
+    const season = document.getElementById('export_season').value;
+    const institution = document.getElementById('export_institution').value;
+    let url = "{{ url_for('admin_views.export_roster') }}";
+    const params = new URLSearchParams();
+    if (season && season !== 'all') params.append('season', season);
+    if (institution && institution !== 'all') params.append('institution', institution);
+    if (params.toString()) url += '?' + params.toString();
+    window.location.href = url;
+  }
+
+  function exportResults() {
+    const season = document.getElementById('results_season').value;
+    const event = document.getElementById('results_event').value;
+    let url = "{{ url_for('admin_views.export_results') }}";
+    const params = new URLSearchParams();
+    if (season && season !== 'all') params.append('season', season);
+    if (event && event !== 'all') params.append('event', event);
+    if (params.toString()) url += '?' + params.toString();
+    window.location.href = url;
+  }
+</script>
+
+<style>
+.form-section h3 {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--primary-dark);
+}
+.form-section small {
+  display: block;
+  margin-top: 4px;
+  color: var(--text-muted);
+  font-size: 11px;
+}
+</style>
+{% endblock %}

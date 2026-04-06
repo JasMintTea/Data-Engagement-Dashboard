@@ -5,7 +5,7 @@ from App.controllers.hr_controller import (
     get_available_events,
     register_participants,
 )
-from App.controllers.participant_controller import create_participant
+from App.controllers.participant_controller import create_participant, clean_name, clean_email
 from App.models import Participant
 from App.database import db
 from datetime import datetime
@@ -91,16 +91,22 @@ def upload_csv():
             row.get("first_name") or row.get("first name") or row.get("firstname", "")
         )
         last = row.get("last_name") or row.get("last name") or row.get("lastname", "")
+
+        first = clean_name(first)
+        last = clean_name(last)
+
         if not first or not last:
             skipped += 1
             continue
 
         email = row.get("email") or None
+        email = clean_email(email) if email else None
         sex = row.get("sex") or None
         division = row.get("div") or row.get("division") or None
         birth_raw = (
             row.get("birth_date") or row.get("birthdate") or row.get("dob") or None
         )
+
         birth_date = None
         if birth_raw:
             for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%m/%d/%Y"):
