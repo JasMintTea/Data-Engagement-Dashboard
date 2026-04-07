@@ -1,22 +1,52 @@
 {% extends "base.html" %}
 {% block title %}Participant Roster{% endblock %}
-{% block breadcrumb %}HR &rsaquo; Participant Roster{% endblock %}
+{% block breadcrumb %}HR › Participant Roster{% endblock %}
 {% block content %}
 
+<!-- ── Batch Import (at top) ─────────────────────────────────────────────── -->
+<div class="card" style="margin-bottom: 20px;">
+  <div class="card-header">Batch Import via CSV</div>
+  <div style="padding: 20px;">
+    <form method="POST" enctype="multipart/form-data" action="{{ url_for('hr_views.upload_csv') }}"
+          style="display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
+      <div style="display:flex; align-items:center; gap:10px; flex:1; min-width:260px;">
+        <label style="font-family:'IBM Plex Mono',monospace; font-size:12px; font-weight:600;
+                      text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted); white-space:nowrap;">CSV File:</label>
+        <input type="file" name="csv_file" accept=".csv" required style="flex:1; font-size:13px;"
+               onchange="document.getElementById('csvFileName').textContent=this.files[0]?this.files[0].name:''">
+        <span id="csvFileName" style="font-family:'IBM Plex Mono',monospace; font-size:12px; color:var(--text-muted);"></span>
+      </div>
+      <button type="submit" class="btn btn-sm">&#8679; Upload &amp; Import</button>
+      <button type="button" class="btn btn-sm btn-ghost" onclick="downloadTemplate()">&#8681; CSV Template</button>
+    </form>
+    <p style="font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--text-muted); margin-top:10px; margin-bottom:0;">
+      Required: <strong>first_name</strong>, <strong>last_name</strong> &mdash;
+      Optional: <strong>email</strong>, <strong>sex</strong>, <strong>div</strong>, <strong>birth_date</strong>
+    </p>
+  </div>
+</div>
+
+<!-- ── Roster Table ───────────────────────────────────────────────────────── -->
 <div class="card">
-  <div class="card-header">
+  <div class="card-header" style="display:flex; justify-content:space-between; align-items:center;">
     <span>Participant Roster</span>
     <a href="{{ url_for('hr_views.add_participant') }}" class="btn btn-sm">+ Add Participant</a>
   </div>
   <div style="padding: 20px;">
-    <div class="filters-bar" style="margin-bottom: 16px;">
-      <div class="filter-group">
-        <label>Search:</label>
-        <input type="text" id="searchInput" placeholder="Name or email...">
+
+    <div style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom:16px; align-items:center;">
+      <div style="display:flex; align-items:center; gap:8px;">
+        <label style="font-family:'IBM Plex Mono',monospace; font-size:12px; font-weight:600;
+                      text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted);">Search:</label>
+        <input type="text" id="searchInput" placeholder="Name or email..."
+               style="padding:6px 10px; border:1.5px solid var(--border); border-radius:3px; font-size:13px;"
+               oninput="filterTable()">
       </div>
-      <div class="filter-group">
-        <label>Division:</label>
-        <select id="divisionFilter">
+      <div style="display:flex; align-items:center; gap:8px;">
+        <label style="font-family:'IBM Plex Mono',monospace; font-size:12px; font-weight:600;
+                      text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted);">Division:</label>
+        <select id="divisionFilter" onchange="filterTable()"
+                style="padding:6px 10px; border:1.5px solid var(--border); border-radius:3px; font-size:13px;">
           <option value="">All Divisions</option>
           <option value="M2029">M2029</option>
           <option value="F2029">F2029</option>
@@ -30,61 +60,89 @@
           <option value="F60+">F60+</option>
         </select>
       </div>
-      <button class="btn btn-sm" onclick="filterTable()">Filter</button>
       <button class="btn btn-sm btn-ghost" onclick="clearFilters()">Clear</button>
+      <span id="rowCount" style="font-family:'IBM Plex Mono',monospace; font-size:12px; color:var(--text-muted); margin-left:auto;">
+        {{ participants|length }} participants
+      </span>
     </div>
 
-    <table id="participantTable">
-      <thead>
-        <tr>
-          <th>Name</th>
-          <th>Email</th>
-          <th>Division</th>
-          <th>Status</th>
+    <div class="table-scroll">
+      <table id="participantTable">
+        <thead>
+          <tr>
+            <th>Name</th><th>Email</th><th>Division</th><th>Sex</th><th>Status</th>
+          </tr>
         </thead>
-      <tbody>
-        {% for p in participants %}
-        <tr class="participant-row" data-name="{{ p.first_name }} {{ p.last_name }}" data-email="{{ p.email or '' }}" data-division="{{ p.division or '' }}">
-          <td>{{ p.first_name }} {{ p.last_name }}</td>
-          <td>{{ p.email or '-' }}</td>
-          <td>{{ p.division or '-' }}</td>
-          <td>
-            {% if p.has_result %}
-            <span class="badge badge-active">Participated</span>
-            {% else %}
-            <span class="badge badge-closed">No-Show</span>
-            {% endif %}
-          </td>
-        </tr>
-        {% else %}
-        <tr>
-          <td colspan="4" style="text-align: center;">No participants found.</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+        <tbody>
+          {% for p in participants %}
+          <tr class="participant-row"
+              data-name="{{ p.first_name }} {{ p.last_name }}"
+              data-email="{{ p.email or '' }}"
+              data-division="{{ p.division or '' }}">
+            <td><strong>{{ p.first_name }} {{ p.last_name }}</strong></td>
+            <td style="font-size:13px; color:var(--text-muted);">{{ p.email or '—' }}</td>
+            <td><span style="font-family:'IBM Plex Mono',monospace; font-size:13px;">{{ p.division or '—' }}</span></td>
+            <td>{{ p.sex or '—' }}</td>
+            <td>
+              {% if p.has_result %}<span class="badge badge-active">Participated</span>
+              {% elif p.is_no_show %}<span class="badge badge-closed">No-Show</span>
+              {% elif p.is_registered %}<span class="badge badge-planning">Registered</span>
+              {% else %}<span class="badge badge-archived">Unregistered</span>{% endif %}
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="5" style="text-align:center; color:var(--text-muted); padding:40px;">
+            No participants yet. <a href="{{ url_for('hr_views.add_participant') }}">Add one now</a>.
+          </td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div style="display:flex; gap:10px; margin-top:16px; padding-top:16px; border-top:1.5px solid var(--border);">
+      <span style="font-family:'IBM Plex Mono',monospace; font-size:12px; font-weight:600;
+                   text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted); align-self:center;">Export:</span>
+      <a href="{{ url_for('hr_views.export_roster') }}" class="btn btn-sm btn-ghost">Roster CSV</a>
+      <a href="{{ url_for('hr_views.export_results') }}" class="btn btn-sm btn-ghost">Results CSV</a>
+    </div>
+
   </div>
 </div>
 
 <script>
   function filterTable() {
-    const search = document.getElementById('searchInput').value.toLowerCase();
+    const search   = document.getElementById('searchInput').value.toLowerCase();
     const division = document.getElementById('divisionFilter').value;
-    const rows = document.querySelectorAll('.participant-row');
+    const rows     = document.querySelectorAll('.participant-row');
+    let visible    = 0;
     rows.forEach(row => {
-      const name = row.getAttribute('data-name').toLowerCase();
-      const email = row.getAttribute('data-email').toLowerCase();
-      const rowDivision = row.getAttribute('data-division');
-      let visible = true;
-      if (search && !name.includes(search) && !email.includes(search)) visible = false;
-      if (division && rowDivision !== division) visible = false;
-      row.style.display = visible ? '' : 'none';
+      const name   = row.getAttribute('data-name').toLowerCase();
+      const email  = row.getAttribute('data-email').toLowerCase();
+      const rowDiv = row.getAttribute('data-division');
+      let show = true;
+      if (search && !name.includes(search) && !email.includes(search)) show = false;
+      if (division && rowDiv !== division) show = false;
+      row.style.display = show ? '' : 'none';
+      if (show) visible++;
     });
+    document.getElementById('rowCount').textContent = visible + ' participants';
   }
   function clearFilters() {
     document.getElementById('searchInput').value = '';
     document.getElementById('divisionFilter').value = '';
     filterTable();
+  }
+  function downloadTemplate() {
+    const csv = [
+      'first_name,last_name,email,sex,div,birth_date',
+      'Jane,Smith,jane.smith@example.com,F,F3039,1988-04-15',
+      'John,Doe,john.doe@example.com,M,M4049,1978-11-02'
+    ].join('\n');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+    a.download = 'participants_template.csv';
+    a.click();
+    URL.revokeObjectURL(a.href);
   }
 </script>
 
