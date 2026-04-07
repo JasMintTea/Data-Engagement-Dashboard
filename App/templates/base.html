@@ -77,12 +77,10 @@
                 {% if current_user and current_user.role == 'hr' %}
                 <div class="nav-section">
                     <div class="nav-section-title">Participants</div>
-                    {# Uncomment when hr_views.participant_roster route exists:
                     <a href="{{ url_for('hr_views.participant_roster') }}" class="nav-item {% if request.endpoint == 'hr_views.participant_roster' %}active{% endif %}">
                         <span class="material-icons">groups</span>
-                        <span class="nav-text">Participant Roster</span>
+                        <span class="nav-text">Roster</span>
                     </a>
-                    #}
                     <a href="{{ url_for('hr_views.add_participant') }}" class="nav-item {% if request.endpoint == 'hr_views.add_participant' %}active{% endif %}">
                         <span class="material-icons">person_add</span>
                         <span class="nav-text">Add Participant</span>
@@ -91,9 +89,13 @@
                         <span class="material-icons">how_to_reg</span>
                         <span class="nav-text">Register for Event</span>
                     </a>
-                    <a href="{{ url_for('hr_views.import_export') }}" class="nav-item">
+                    <a href="{{ url_for('hr_views.import_export') }}" class="nav-item {% if request.endpoint == 'hr_views.import_export' %}active{% endif %}">
                         <span class="material-icons">import_export</span>
                         <span class="nav-text">Import / Export</span>
+                    </a>
+                    <a href="{{ url_for('hr_views.report') }}" class="nav-item {% if request.endpoint == 'hr_views.report' %}active{% endif %}">
+                        <span class="material-icons">assessment</span>
+                        <span class="nav-text">Report</span>
                     </a>
                 </div>
                 {% endif %}

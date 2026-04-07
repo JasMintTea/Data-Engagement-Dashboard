@@ -230,6 +230,12 @@
     </select>
   </div>
   <button class="btn btn-sm" style="margin-left: auto;" onclick="applyFilters()">Apply Filters</button>
+  <a href="{{ url_for('admin_views.season_pdf_report', season=filter_year) }}"
+     class="btn btn-sm"
+     style="background:var(--gold,#C8963E); color:#fff; border:none; display:flex; align-items:center; gap:6px; text-decoration:none;"
+     title="Download full season PDF report">
+    ⬇ PDF Report
+  </a>
 </div>
 
 <!-- ════════════════════════════════════════════════════════
