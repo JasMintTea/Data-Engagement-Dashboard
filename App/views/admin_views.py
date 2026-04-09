@@ -440,9 +440,62 @@ def list_users():
     if current_user.role != 'admin':
         return "Access Denied", 403
 
+    print(">>> list_users route called")
+    
     from App.controllers.admin_controller import get_all_users
     users = get_all_users()
-    return render_template('admin/users.html', users=users)
+    institutions = Institution.query.all()
+    return render_template('admin/users.html', users=users, institutions=institutions)
+
+
+@admin_views.route('/admin/users/update/<int:id>', methods=['POST'])
+@jwt_required()
+def update_user(id):
+    if current_user.role != 'admin':
+        return "Access Denied", 403
+    
+    user = User.query.get_or_404(id)
+    
+    user.firstname = request.form.get('firstname')
+    user.lastname = request.form.get('lastname')
+    user.email = request.form.get('email')
+    user.role = request.form.get('role')
+    
+    if user.role == 'hr':
+        user.institution_id = request.form.get('institution_id')
+    else:
+        user.institution_id = None
+    
+    db.session.commit()
+    flash(f'User {user.username} updated successfully', 'success')
+    return redirect(url_for('admin_views.list_users'))
+
+
+@admin_views.route('/admin/users/deactivate/<int:id>', methods=['POST'])
+@jwt_required()
+def deactivate_user(id):
+    if current_user.role != 'admin':
+        return "Access Denied", 403
+    
+    user = User.query.get_or_404(id)
+    user.is_active = False
+    db.session.commit()
+    flash(f'User {user.username} deactivated', 'warning')
+    return redirect(url_for('admin_views.list_users'))
+
+
+@admin_views.route('/admin/users/activate/<int:id>', methods=['POST'])
+@jwt_required()
+def activate_user(id):
+    if current_user.role != 'admin':
+        return "Access Denied", 403
+    
+    user = User.query.get_or_404(id)
+    user.is_active = True
+    db.session.commit()
+    flash(f'User {user.username} activated', 'success')
+    return redirect(url_for('admin_views.list_users'))
+
 
 
 # ================== INSTITUTION MANAGEMENT ==================

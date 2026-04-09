@@ -1,56 +1,281 @@
 {% extends "base.html" %}
 {% block title %}User Management{% endblock %}
+{% block breadcrumb %}Admin &rsaquo; User Management{% endblock %}
 {% block content %}
-<div class="topbar">
-    <span>CariFin Data Dashboard</span>
-    <div class="topbar-right">
-        <span>Hi, {{ current_user.firstname }} (Admin)</span>
-        <a href="{{ url_for('admin_views.dashboard') }}">Dashboard</a>
-        <a href="{{ url_for('auth_views.logout') }}">Logout</a>
-    </div>
+
+<div class="card">
+  <div class="card-header">
+    <span>Manage Users</span>
+    <button class="btn btn-sm" id="addUserBtn">+ Add New User</button>
+  </div>
+  <div style="overflow-x: auto;">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Name</th>
+          <th>Username</th>
+          <th>Email</th>
+          <th>Role</th>
+          <th>Institution</th>
+          <th>Status</th>
+          <th>Actions</th>
+        </thead>
+      <tbody>
+        {% for user in users %}
+        <tr>
+          <td>{{ user.id }}</td>
+          <td>{{ user.firstname }} {{ user.lastname }}</td>
+          <td>{{ user.username }}</td>
+          <td>{{ user.email }}</td>
+          <td>{{ user.role|capitalize }}</td>
+          <td>{{ user.institution.name if user.institution else '-' }}</td>
+          <td>
+            {% if user.is_active %}
+            <span class="badge badge-active">Active</span>
+            {% else %}
+            <span class="badge badge-closed">Inactive</span>
+            {% endif %}
+          </td>
+          <td>
+            <button class="btn btn-sm btn-ghost edit-user" 
+                    data-id="{{ user.id }}"
+                    data-firstname="{{ user.firstname }}"
+                    data-lastname="{{ user.lastname }}"
+                    data-username="{{ user.username }}"
+                    data-email="{{ user.email }}"
+                    data-role="{{ user.role }}"
+                    data-institution="{{ user.institution_id }}">
+              Edit
+            </button>
+            {% if user.is_active %}
+            <button class="btn btn-sm btn-danger deactivate-user" data-id="{{ user.id }}" data-name="{{ user.firstname }} {{ user.lastname }}">
+              Deactivate
+            </button>
+            {% else %}
+            <button class="btn btn-sm btn-success activate-user" data-id="{{ user.id }}" data-name="{{ user.firstname }} {{ user.lastname }}">
+              Activate
+            </button>
+            {% endif %}
+           </td
+         </tr>
+        {% else %}
+        <tr><td colspan="8" style="text-align: center;">No users found. Add your first user using the button above.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
 </div>
 
-<div class="main">
-    <h1>User Management</h1>
-    
-    <div class="card">
-        <table>
-            <thead>
-                <tr>
-                    <th>ID</th>
-                    <th>Name</th>
-                    <th>Username</th>
-                    <th>Email</th>
-                    <th>Role</th>
-                    <th>Institution</th>
-                    <th>Status</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for user in users %}
-                <tr>
-                    <td>{{ user.id }}</td>
-                    <td>{{ user.firstname }} {{ user.lastname }}</td>
-                    <td>{{ user.username }}</td>
-                    <td>{{ user.email }}</td>
-                    <td>{{ user.role }}</td>
-                    <td>{{ user.institution.code if user.institution else 'N/A' }}</td>
-                    <td>
-                        {% if user.is_active %}
-                        <span class="badge badge-active">Active</span>
-                        {% else %}
-                        <span class="badge badge-inactive">Inactive</span>
-                        {% endif %}
-                    </td>
-                    <td>
-                        <a href="#">Edit</a> |
-                        <a href="#">Deactivate</a>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
+<!-- Add/Edit User Modal -->
+<div class="overlay" id="userModal">
+  <div class="modal">
+    <h3 id="modalTitle">Add User</h3>
+    <form id="userForm" method="POST" action="{{ url_for('admin_views.create_user') }}">
+      <div class="modal-field">
+        <label>First Name *</label>
+        <input type="text" name="firstname" id="firstname" required>
+      </div>
+      <div class="modal-field">
+        <label>Last Name *</label>
+        <input type="text" name="lastname" id="lastname" required>
+      </div>
+      <div class="modal-field">
+        <label>Email *</label>
+        <input type="email" name="email" id="email" required>
+      </div>
+      <div class="modal-field">
+        <label>Role *</label>
+        <select name="role" id="role" required>
+          <option value="">-- Select Role --</option>
+          <option value="admin">Admin</option>
+          <option value="hr">HR</option>
+          <option value="scorer">Scorer</option>
+        </select>
+      </div>
+      <div class="modal-field" id="institutionField" style="display: none;">
+        <label>Institution *</label>
+        <select name="institution_id" id="institution_id">
+          <option value="">-- Select Institution --</option>
+          {% for inst in institutions %}
+          <option value="{{ inst.id }}">{{ inst.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" id="closeModalBtn">Cancel</button>
+        <button type="submit" class="btn">Save User</button>
+      </div>
+    </form>
+  </div>
 </div>
+
+<!-- Edit User Modal (separate because it needs PUT method) -->
+<div class="overlay" id="editUserModal">
+  <div class="modal">
+    <h3>Edit User</h3>
+    <form id="editUserForm" method="POST">
+      <input type="hidden" name="_method" value="PUT">
+      <div class="modal-field">
+        <label>First Name</label>
+        <input type="text" name="firstname" id="edit_firstname" required>
+      </div>
+      <div class="modal-field">
+        <label>Last Name</label>
+        <input type="text" name="lastname" id="edit_lastname" required>
+      </div>
+      <div class="modal-field">
+        <label>Email</label>
+        <input type="email" name="email" id="edit_email" required>
+      </div>
+      <div class="modal-field">
+        <label>Role</label>
+        <select name="role" id="edit_role">
+          <option value="admin">Admin</option>
+          <option value="hr">HR</option>
+          <option value="scorer">Scorer</option>
+        </select>
+      </div>
+      <div class="modal-field" id="editInstitutionField" style="display: none;">
+        <label>Institution</label>
+        <select name="institution_id" id="edit_institution_id">
+          <option value="">-- Select Institution --</option>
+          {% for inst in institutions %}
+          <option value="{{ inst.id }}">{{ inst.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" id="closeEditModalBtn">Cancel</button>
+        <button type="submit" class="btn">Save Changes</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  // Toggle institution field based on role selection
+  const roleSelect = document.getElementById('role');
+  const institutionField = document.getElementById('institutionField');
+  
+  function toggleInstitutionField() {
+    if (roleSelect.value === 'hr') {
+      institutionField.style.display = 'block';
+      document.getElementById('institution_id').required = true;
+    } else {
+      institutionField.style.display = 'none';
+      document.getElementById('institution_id').required = false;
+    }
+  }
+  
+  if (roleSelect) {
+    roleSelect.addEventListener('change', toggleInstitutionField);
+  }
+  
+  // Add User Modal
+  const addBtn = document.getElementById('addUserBtn');
+  const userModal = document.getElementById('userModal');
+  const closeModalBtn = document.getElementById('closeModalBtn');
+  
+  addBtn?.addEventListener('click', () => {
+    document.getElementById('userForm').reset();
+    document.getElementById('modalTitle').innerText = 'Add User';
+    institutionField.style.display = 'none';
+    userModal.classList.add('active');
+  });
+  
+  closeModalBtn?.addEventListener('click', () => {
+    userModal.classList.remove('active');
+  });
+  
+  // Edit User Modal
+  const editModal = document.getElementById('editUserModal');
+  const closeEditModalBtn = document.getElementById('closeEditModalBtn');
+  const editForm = document.getElementById('editUserForm');
+  
+  document.querySelectorAll('.edit-user').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.dataset.id;
+      const firstname = btn.dataset.firstname;
+      const lastname = btn.dataset.lastname;
+      const email = btn.dataset.email;
+      const role = btn.dataset.role;
+      const institutionId = btn.dataset.institution;
+      
+      document.getElementById('edit_firstname').value = firstname;
+      document.getElementById('edit_lastname').value = lastname;
+      document.getElementById('edit_email').value = email;
+      document.getElementById('edit_role').value = role;
+      document.getElementById('edit_institution_id').value = institutionId || '';
+      
+      // Show/hide institution field based on role
+      const editInstField = document.getElementById('editInstitutionField');
+      if (role === 'hr') {
+        editInstField.style.display = 'block';
+      } else {
+        editInstField.style.display = 'none';
+      }
+      
+      // Set form action
+      editForm.action = "{{ url_for('admin_views.update_user', id=0) }}".replace('/0', `/${id}`);
+      editModal.classList.add('active');
+    });
+  });
+  
+  closeEditModalBtn?.addEventListener('click', () => {
+    editModal.classList.remove('active');
+  });
+  
+  // Deactivate User
+  document.querySelectorAll('.deactivate-user').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.dataset.id;
+      const name = btn.dataset.name;
+      if (confirm(`Deactivate user "${name}"? They will lose access to the system.`)) {
+        const url = "{{ url_for('admin_views.deactivate_user', id=0) }}".replace('/0', `/${id}`);
+        fetch(url, { method: 'POST' })
+          .then(() => location.reload())
+          .catch(err => alert('Error deactivating user'));
+      }
+    });
+  });
+  
+  // Activate User
+  document.querySelectorAll('.activate-user').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.dataset.id;
+      const name = btn.dataset.name;
+      if (confirm(`Activate user "${name}"? They will regain access.`)) {
+        const url = "{{ url_for('admin_views.activate_user', id=0) }}".replace('/0', `/${id}`);
+        fetch(url, { method: 'POST' })
+          .then(() => location.reload())
+          .catch(err => alert('Error activating user'));
+      }
+    });
+  });
+</script>
+
+<style>
+.modal-field {
+  margin-bottom: 16px;
+}
+.modal-field label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+.modal-field input, .modal-field select {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+.btn-success {
+  background: #2e7d32;
+}
+.btn-success:hover {
+  background: #1b5e20;
+}
+</style>
 {% endblock %}
