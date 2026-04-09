@@ -8,6 +8,22 @@ A comprehensive data dashboard for tracking participation and engagement across 
 
 ---
 
+## Table of Contents
+
+- [Overview](#overview)
+- [Key Features](#key-features)
+- [Technology Stack](#technology-stack)
+- [Live Demo](#live-demo)
+- [Installation](#installation)
+- [Running Tests](#running-tests)
+- [Project Structure](#project-structure)
+- [Environment Variables](#environment-variables)
+- [API Endpoints](#api-endpoints-selected)
+- [Contributing](#contributing)
+- [Team](#team)
+
+---
+
 ## Overview
 
 The **CariFin Data & Engagement Dashboard** provides a centralized platform for administrators, HR managers, and scorers to manage participants, track event registrations, upload results, and generate detailed performance reports. The system supports role-based access, CSV/Excel imports, and real-time analytics.
