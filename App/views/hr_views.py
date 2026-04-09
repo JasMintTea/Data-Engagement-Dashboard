@@ -307,31 +307,6 @@ def export_results():
     )
 
 
-@hr_views.route('/hr/report')
-@jwt_required()
-def report():
-    if current_user.role != 'hr':
-        return "Access Denied", 403
-
-    from App.controllers.hr_controller import get_hr_stats, get_participation_by_division, get_stage_completion_for_institution
-    from datetime import datetime
-
-    stats = get_hr_stats(current_user.institution_id)
-    division_counts = get_participation_by_division(current_user.institution_id)
-    stage_completion = get_stage_completion_for_institution(current_user.institution_id)
-
-    report_date = datetime.now().strftime("%B %d, %Y at %I:%M %p")
-
-    return render_template('hr/report.html',
-                           institution=stats['institution'],
-                           reg_count=stats['reg_count'],
-                           part_count=stats['part_count'],
-                           no_show_count=stats['no_show_count'],
-                           total_participants=stats['total_participants'],
-                           participants=stats['participants'],
-                           division_counts=division_counts,
-                           stage_completion=stage_completion,
-                           report_date=report_date)
 
 
 @hr_views.route('/hr/import-export', methods=['GET'])
@@ -367,3 +342,44 @@ def import_participants():
     # GET – show form with available events
     events = get_available_events(current_user.institution_id)
     return render_template('hr/import_export.html', events=events)
+
+
+
+@hr_views.route('/hr/report')
+@jwt_required()
+def report():
+    if current_user.role != 'hr':
+        return "Access Denied", 403
+
+    from App.controllers.hr_controller import (
+        get_hr_stats, get_participation_by_division,
+        get_stage_completion_for_institution, get_gender_split_for_institution,
+        get_age_groups_for_institution
+    )
+    from App.hr_pdf_report import generate_hr_report
+    from flask import send_file
+    import io
+
+    stats = get_hr_stats(current_user.institution_id)
+    division_counts = get_participation_by_division(current_user.institution_id)
+    stage_completion = get_stage_completion_for_institution(current_user.institution_id)
+    gender_split = get_gender_split_for_institution(current_user.institution_id)
+    age_groups = get_age_groups_for_institution(current_user.institution_id)
+
+    pdf_bytes = generate_hr_report(
+        institution=stats['institution'],
+        stats=stats,
+        participants=stats['participants'],
+        stage_completion=stage_completion,
+        division_counts=division_counts,
+        gender_split=gender_split,
+        age_groups=age_groups,
+    )
+
+    filename = f"{stats['institution'].code}_performance_report.pdf"
+    return send_file(
+        io.BytesIO(pdf_bytes),
+        mimetype='application/pdf',
+        as_attachment=True,
+        download_name=filename,
+    )

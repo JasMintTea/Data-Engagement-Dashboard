@@ -267,3 +267,132 @@ def get_stage_completion_for_institution(institution_id, season_id=None):
             'percentage': round((completed / total_reg * 100), 1) if total_reg else 0
         })
     return completion
+
+
+def get_participation_by_division(institution_id, season_id=None):
+    """Return counts of participants per division for an institution."""
+    from App.models import Participant, Registration, SeasonEvent, Season
+    if not season_id:
+        current_season = Season.query.order_by(Season.year.desc()).first()
+        if not current_season:
+            return {}
+        season_id = current_season.id
+
+    registrations = db.session.query(Participant.division)\
+        .join(Registration)\
+        .join(SeasonEvent)\
+        .filter(Participant.institution_id == institution_id)\
+        .filter(SeasonEvent.season_id == season_id)\
+        .all()
+
+    counts = {}
+    for (division,) in registrations:
+        div = division or 'Unknown'
+        counts[div] = counts.get(div, 0) + 1
+    return counts
+
+
+def get_stage_completion_for_institution(institution_id, season_id=None):
+    """Get stage completion for Urban Challenge for this institution."""
+    from App.models import Event, SeasonEvent, Stage, Registration, Result, Season
+    urban = Event.query.filter_by(name='Urban Challenge').first()
+    if not urban:
+        return []
+
+    if not season_id:
+        current_season = Season.query.order_by(Season.year.desc()).first()
+        if not current_season:
+            return []
+        season_id = current_season.id
+
+    season_event = SeasonEvent.query.filter_by(season_id=season_id, event_id=urban.id).first()
+    if not season_event:
+        return []
+
+    stages = Stage.query.filter_by(season_event_id=season_event.id).order_by(Stage.stage_number).all()
+    if not stages:
+        return []
+
+    registrations = db.session.query(Registration.id)\
+        .join(Participant)\
+        .filter(Participant.institution_id == institution_id)\
+        .filter(Registration.season_event_id == season_event.id)\
+        .all()
+    reg_ids = [r.id for r in registrations]
+    total_reg = len(reg_ids)
+
+    completion = []
+    for stage in stages:
+        completed = Result.query.filter(
+            Result.registration_id.in_(reg_ids),
+            Result.stage_id == stage.id
+        ).count()
+        completion.append({
+            'stage': stage.stage_number,
+            'completed': completed,
+            'total': total_reg,
+            'percentage': round((completed / total_reg * 100), 1) if total_reg else 0
+        })
+    return completion
+
+
+def get_gender_split_for_institution(institution_id, season_id=None):
+    from App.models import Participant, Registration, SeasonEvent, Season
+    if not season_id:
+        current_season = Season.query.order_by(Season.year.desc()).first()
+        if not current_season:
+            return []
+        season_id = current_season.id
+
+    results = db.session.query(Participant.sex, db.func.count(Participant.id))\
+        .join(Registration)\
+        .join(SeasonEvent)\
+        .filter(Participant.institution_id == institution_id)\
+        .filter(SeasonEvent.season_id == season_id)\
+        .group_by(Participant.sex)\
+        .all()
+
+    return [{'sex': r[0] or 'Unknown', 'count': r[1]} for r in results]
+
+
+
+def get_age_groups_for_institution(institution_id, season_id=None):
+    from App.models import Participant, Registration, SeasonEvent, Season
+    if not season_id:
+        current_season = Season.query.order_by(Season.year.desc()).first()
+        if not current_season:
+            return []
+        season_id = current_season.id
+
+    participants = db.session.query(Participant.division, Participant.sex)\
+        .join(Registration)\
+        .join(SeasonEvent)\
+        .filter(Participant.institution_id == institution_id)\
+        .filter(SeasonEvent.season_id == season_id)\
+        .all()
+
+    groups = {}
+    for div, sex in participants:
+        if not div:
+            continue
+        # Extract age group from division (e.g., M2029 -> 20-29)
+        import re
+        match = re.search(r'(\d{2})(\d{2})', div)
+        if match:
+            group = f"{match.group(1)}-{match.group(2)}"
+        else:
+            group = 'Other'
+        if group not in groups:
+            groups[group] = {'M': 0, 'F': 0, 'total': 0}
+        if sex == 'M':
+            groups[group]['M'] += 1
+        elif sex == 'F':
+            groups[group]['F'] += 1
+        groups[group]['total'] += 1
+
+    result = [{'group': k, 'M': v['M'], 'F': v['F'], 'total': v['total']}
+              for k, v in sorted(groups.items(), key=lambda x: int(x[0].split('-')[0]))]
+    return result
+
+
+
