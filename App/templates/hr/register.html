@@ -8,36 +8,70 @@
     <span>Register Participants for Event</span>
   </div>
   <div class="form-body">
-    <form method="POST" action="{{ url_for('hr_views.register') }}">
+    <form method="POST" action="{{ url_for('hr_views.register') }}" id="registrationForm">
       
       <div class="form-row">
         <span class="form-label">Select Event:</span>
-        <select name="season_event_id" required class="wide">
+        <select name="season_event_id" required class="wide" id="eventSelect">
           <option value="">-- Choose an event --</option>
           {% for event in events %}
           <option value="{{ event.id }}">{{ event.name }} ({{ event.date }})</option>
           {% endfor %}
         </select>
       </div>
+
+      <!-- Search and Filter Bar -->
+      <div class="filters-bar" style="margin-bottom: 16px;">
+        <div class="filter-group">
+          <span class="form-label" style="min-width: auto;">Search:</span>
+          <input type="text" id="searchInput" placeholder="Name, email, or division..." style="width: 200px;">
+        </div>
+        <div class="filter-group">
+          <span class="form-label" style="min-width: auto;">Division:</span>
+          <select id="divisionFilter">
+            <option value="all">All Divisions</option>
+            {% set divisions = [] %}
+            {% for p in participants %}
+              {% if p.division and p.division not in divisions %}
+                {% set _ = divisions.append(p.division) %}
+              {% endif %}
+            {% endfor %}
+            {% for div in divisions|sort %}
+            <option value="{{ div }}">{{ div }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="filter-group">
+          <button type="button" class="btn btn-sm" id="selectFilteredBtn">Select Filtered</button>
+          <button type="button" class="btn btn-sm btn-ghost" id="clearFiltersBtn">Clear Filters</button>
+        </div>
+      </div>
       
       <div class="form-row" style="align-items: flex-start;">
         <span class="form-label">Select Participants:</span>
-        <div style="flex: 1; max-height: 300px; overflow-y: auto; border: 1.5px solid var(--border); padding: 10px;">
-          {% for p in participants %}
-          <div style="margin-bottom: 8px;">
-            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-              <input type="checkbox" name="participant_ids" value="{{ p.id }}">
-              <span>{{ p.first_name }} {{ p.last_name }} ({{ p.division or 'No division' }})</span>
-            </label>
+        <div style="flex: 1; max-height: 400px; overflow-y: auto; border: 1.5px solid var(--border); padding: 10px;">
+          <div id="participantList">
+            {% for p in participants %}
+            <div class="participant-item" data-name="{{ p.first_name }} {{ p.last_name }}" data-email="{{ p.email or '' }}" data-division="{{ p.division or '' }}" style="margin-bottom: 8px;">
+              <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                <input type="checkbox" name="participant_ids" value="{{ p.id }}">
+                <span>{{ p.first_name }} {{ p.last_name }} 
+                  {% if p.email %}({{ p.email }}){% endif %}
+                  {% if p.division %} – {{ p.division }}{% endif %}
+                </span>
+              </label>
+            </div>
+            {% else %}
+            <p style="color: var(--text-muted);">No participants found. <a href="{{ url_for('hr_views.add_participant') }}">Add one first</a>.</p>
+            {% endfor %}
           </div>
-          {% else %}
-          <p style="color: var(--text-muted);">No participants found. <a href="{{ url_for('hr_views.add_participant') }}">Add one first</a>.</p>
-          {% endfor %}
         </div>
       </div>
       
       <div class="form-actions">
         <button type="submit" class="btn">Register Selected</button>
+        <button type="button" class="btn btn-ghost" id="selectAllBtn">Select All</button>
+        <button type="button" class="btn btn-ghost" id="deselectAllBtn">Deselect All</button>
         <a href="{{ url_for('hr_views.dashboard') }}" class="btn btn-ghost">Cancel</a>
       </div>
     </form>
@@ -45,22 +79,76 @@
 </div>
 
 <script>
-  // Optional: Select/deselect all functionality
   document.addEventListener('DOMContentLoaded', function() {
-    const checkboxes = document.querySelectorAll('input[name="participant_ids"]');
-    const selectAllBtn = document.createElement('button');
-    selectAllBtn.type = 'button';
-    selectAllBtn.className = 'btn btn-sm btn-ghost';
-    selectAllBtn.textContent = 'Select All';
-    selectAllBtn.style.marginBottom = '10px';
-    
-    selectAllBtn.onclick = function() {
-      const allChecked = Array.from(checkboxes).every(cb => cb.checked);
-      checkboxes.forEach(cb => cb.checked = !allChecked);
-      selectAllBtn.textContent = allChecked ? 'Select All' : 'Deselect All';
-    };
-    
-    document.querySelector('.form-body').insertBefore(selectAllBtn, document.querySelector('.form-body').children[2]);
+    const searchInput = document.getElementById('searchInput');
+    const divisionFilter = document.getElementById('divisionFilter');
+    const participantItems = document.querySelectorAll('.participant-item');
+    const selectAllBtn = document.getElementById('selectAllBtn');
+    const deselectAllBtn = document.getElementById('deselectAllBtn');
+    const selectFilteredBtn = document.getElementById('selectFilteredBtn');
+    const clearFiltersBtn = document.getElementById('clearFiltersBtn');
+
+    // Function to filter participants
+    function filterParticipants() {
+      const searchTerm = searchInput.value.toLowerCase();
+      const selectedDivision = divisionFilter.value;
+
+      participantItems.forEach(item => {
+        const name = item.dataset.name.toLowerCase();
+        const email = item.dataset.email.toLowerCase();
+        const division = item.dataset.division;
+        
+        let matches = true;
+        
+        // Check search term
+        if (searchTerm && !name.includes(searchTerm) && !email.includes(searchTerm)) {
+          matches = false;
+        }
+        
+        // Check division filter
+        if (selectedDivision !== 'all' && division !== selectedDivision) {
+          matches = false;
+        }
+        
+        item.style.display = matches ? 'block' : 'none';
+      });
+    }
+
+    // Select all visible (filtered) participants
+    function selectFiltered() {
+      const visibleItems = document.querySelectorAll('.participant-item[style*="display: block"], .participant-item:not([style*="display: none"])');
+      visibleItems.forEach(item => {
+        const checkbox = item.querySelector('input[type="checkbox"]');
+        if (checkbox) checkbox.checked = true;
+      });
+    }
+
+    // Select all participants
+    function selectAll() {
+      const allCheckboxes = document.querySelectorAll('input[name="participant_ids"]');
+      allCheckboxes.forEach(cb => cb.checked = true);
+    }
+
+    // Deselect all participants
+    function deselectAll() {
+      const allCheckboxes = document.querySelectorAll('input[name="participant_ids"]');
+      allCheckboxes.forEach(cb => cb.checked = false);
+    }
+
+    // Clear all filters
+    function clearFilters() {
+      searchInput.value = '';
+      divisionFilter.value = 'all';
+      filterParticipants();
+    }
+
+    // Event listeners
+    searchInput.addEventListener('input', filterParticipants);
+    divisionFilter.addEventListener('change', filterParticipants);
+    selectAllBtn.addEventListener('click', selectAll);
+    deselectAllBtn.addEventListener('click', deselectAll);
+    selectFilteredBtn.addEventListener('click', selectFiltered);
+    clearFiltersBtn.addEventListener('click', clearFilters);
   });
 </script>
 
