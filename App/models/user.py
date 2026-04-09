@@ -405,6 +405,7 @@ class Result(db.Model):
     placement = db.Column(db.Integer, nullable=True)
     points = db.Column(db.Integer, nullable=True)
     is_error = db.Column(db.Boolean, default=False)
+    approved = db.Column(db.Boolean, default=False)
     registration = db.relationship(
         "Registration", backref=db.backref("results", lazy=True)
     )

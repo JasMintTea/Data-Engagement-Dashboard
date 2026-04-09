@@ -190,6 +190,8 @@ def upload_results():
                 result = Result(registration_id=reg.id, stage_id=stage.id)
             result.finish_time = finish_time
             result.placement = placement
+            result.approved = False
+            result.is_error = False
             db.session.add(result)
             count += 1
 

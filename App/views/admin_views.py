@@ -762,3 +762,109 @@ def notifications():
     if current_user.role != 'admin':
         return "Access Denied", 403
     return render_template('admin/coming_soon.html', title='Notifications')
+
+
+@admin_views.route('/admin/scores')
+@jwt_required()
+def manage_scores():
+    if current_user.role != 'admin':
+        return "Access Denied", 403
+
+    # Get query parameters
+    season_id = request.args.get('season_id', type=int)
+    event_id = request.args.get('event_id', type=int)
+    only_pending = request.args.get('pending', 'false').lower() == 'true'
+
+    # Base query: join Result → Registration → SeasonEvent → Season/Event
+    query = db.session.query(
+        Result.id.label('result_id'),
+        Result.finish_time,
+        Result.placement,
+        Result.is_error,
+        Result.registration_id,
+        Participant.first_name,
+        Participant.last_name,
+        Institution.name.label('institution_name'),
+        Event.name.label('event_name'),
+        Season.year.label('season_year'),
+        Season.status.label('season_status'),
+        Stage.stage_number
+    ).join(Registration, Result.registration_id == Registration.id)\
+     .join(Participant, Registration.participant_id == Participant.id)\
+     .join(Institution, Participant.institution_id == Institution.id)\
+     .join(SeasonEvent, Registration.season_event_id == SeasonEvent.id)\
+     .join(Event, SeasonEvent.event_id == Event.id)\
+     .join(Season, SeasonEvent.season_id == Season.id)\
+     .join(Stage, Result.stage_id == Stage.id)
+
+    if season_id:
+        query = query.filter(Season.id == season_id)
+    if event_id:
+        query = query.filter(Event.id == event_id)
+    if only_pending:
+        # Example: pending if is_error is True (flagged) or you have an 'approved' flag
+        # Assuming you add an 'approved' column to Result, else treat is_error as pending
+        query = query.filter(Result.is_error == True)
+
+    results = query.order_by(Season.year.desc(), Event.name, Stage.stage_number).all()
+
+    seasons = Season.query.order_by(Season.year.desc()).all()
+    events = Event.query.order_by(Event.name).all()
+
+    return render_template('admin/scores.html',
+                           results=results,
+                           seasons=seasons,
+                           events=events,
+                           selected_season=season_id,
+                           selected_event=event_id,
+                           only_pending=only_pending)
+
+
+
+@admin_views.route('/admin/scores/approve/<int:result_id>', methods=['POST'])
+@jwt_required()
+def approve_result(result_id):
+    if current_user.role != 'admin':
+        return "Access Denied", 403
+
+    result = Result.query.get_or_404(result_id)
+    result.approved = True
+    result.is_error = False  # Clear flag if needed
+    db.session.commit()
+    flash('Result approved.', 'success')
+    return redirect(request.referrer or url_for('admin_views.manage_scores'))
+
+
+@admin_views.route('/admin/scores/reject/<int:result_id>', methods=['POST'])
+@jwt_required()
+def reject_result(result_id):
+    if current_user.role != 'admin':
+        return "Access Denied", 403
+
+    result = Result.query.get_or_404(result_id)
+    result.approved = False
+    result.is_error = True
+    db.session.commit()
+    flash('Result rejected and flagged.', 'warning')
+    return redirect(request.referrer or url_for('admin_views.manage_scores'))
+
+
+@admin_views.route('/admin/scores/bulk-approve', methods=['POST'])
+@jwt_required()
+def bulk_approve_results():
+    if current_user.role != 'admin':
+        return "Access Denied", 403
+
+    result_ids = request.form.getlist('result_ids')
+    if not result_ids:
+        flash('No results selected.', 'warning')
+        return redirect(request.referrer or url_for('admin_views.manage_scores'))
+
+    for rid in result_ids:
+        result = Result.query.get(rid)
+        if result:
+            result.approved = True
+            result.is_error = False
+    db.session.commit()
+    flash(f'{len(result_ids)} results approved.', 'success')
+    return redirect(request.referrer or url_for('admin_views.manage_scores'))

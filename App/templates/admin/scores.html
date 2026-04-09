@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% block title %}Score Management{% endblock %}
+{% block breadcrumb %}Admin &rsaquo; Scores{% endblock %}
+{% block content %}
+
+<div class="card">
+  <div class="card-header">Filter Scores</div>
+  <div class="form-body">
+    <form method="GET" action="{{ url_for('admin_views.manage_scores') }}" class="form-row">
+      <div class="filter-group">
+        <label>Season:</label>
+        <select name="season_id">
+          <option value="">All Seasons</option>
+          {% for s in seasons %}
+          <option value="{{ s.id }}" {% if selected_season == s.id %}selected{% endif %}>{{ s.year }} ({{ s.status }})</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="filter-group">
+        <label>Event:</label>
+        <select name="event_id">
+          <option value="">All Events</option>
+          {% for e in events %}
+          <option value="{{ e.id }}" {% if selected_event == e.id %}selected{% endif %}>{{ e.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="filter-group">
+        <label><input type="checkbox" name="pending" value="true" {% if only_pending %}checked{% endif %}> Only Pending / Flagged</label>
+      </div>
+      <button type="submit" class="btn btn-sm">Apply Filters</button>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">Uploaded Scores</div>
+  <div style="overflow-x: auto;">
+    <form method="POST" action="{{ url_for('admin_views.bulk_approve_results') }}" id="bulkForm">
+      <table class="table">
+        <thead>
+          <tr>
+            <th><input type="checkbox" id="selectAll"></th>
+            <th>Participant</th>
+            <th>Institution</th>
+            <th>Event</th>
+            <th>Stage</th>
+            <th>Finish Time</th>
+            <th>Placement</th>
+            <th>Season</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </thead>
+        <tbody>
+          {% for r in results %}
+          <tr>
+            <td><input type="checkbox" name="result_ids" value="{{ r.result_id }}" {% if r.season_status != 'active' %}disabled{% endif %}></td>
+            <td>{{ r.first_name }} {{ r.last_name }}</td>
+            <td>{{ r.institution_name }}</td>
+            <td>{{ r.event_name }}</td>
+            <td>{{ r.stage_number }}</td>
+            <td>{{ r.finish_time }}</td>
+            <td>{{ r.placement or '-' }}</td>
+            <td>{{ r.season_year }} ({{ r.season_status }})</td>
+            <td>
+              {% if r.approved %}
+              <span class="badge badge-active">Approved</span>
+              {% elif r.is_error %}
+              <span class="badge badge-closed">Flagged</span>
+              {% else %}
+              <span class="badge badge-planning">Pending</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if r.season_status == 'active' and not r.approved %}
+              <form method="POST" action="{{ url_for('admin_views.approve_result', result_id=r.result_id) }}" style="display:inline;">
+                <button type="submit" class="btn btn-sm">Approve</button>
+              </form>
+              <form method="POST" action="{{ url_for('admin_views.reject_result', result_id=r.result_id) }}" style="display:inline;">
+                <button type="submit" class="btn btn-sm btn-danger">Reject</button>
+              </form>
+              {% elif r.approved %}
+              <span class="badge badge-active">✓ Approved</span>
+              {% else %}
+              <span class="badge badge-closed">Season Closed / No Edits</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="10" style="text-align: center;">No results found.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <div class="form-actions">
+        <button type="submit" class="btn" {% if results|selectattr('season_status', 'equalto', 'active')|list|length == 0 %}disabled{% endif %}>Bulk Approve Selected</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  document.getElementById('selectAll')?.addEventListener('change', function(e) {
+    document.querySelectorAll('input[name="result_ids"]').forEach(cb => cb.checked = e.target.checked);
+  });
+</script>
+
+{% endblock %}
