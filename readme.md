@@ -107,8 +107,9 @@ pytest App/tests/ -v
 
 ---
 
-### Project Structure
+## Project Structure
 
+```text
 Data-Engagement-Dashboard/
 ├── App/
 │   ├── controllers/          # Business logic
@@ -126,6 +127,7 @@ Data-Engagement-Dashboard/
 ├── requirements.txt          # Python dependencies
 ├── render.yaml               # Render deployment configuration
 └── README.md
+```
 
 ---
 
