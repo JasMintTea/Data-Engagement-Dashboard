@@ -1,189 +1,99 @@
-![Tests](https://github.com/uwidcit/flaskmvc/actions/workflows/dev.yml/badge.svg)
+# CariFin Data & Engagement Dashboard
 
-# Flask MVC Template
-A template for flask applications structured in the Model View Controller pattern [Demo](https://dcit-flaskmvc.herokuapp.com/). [Postman Collection](https://documenter.getpostman.com/view/583570/2s83zcTnEJ)
+[![Render](https://img.shields.io/badge/Render-Deployed-brightgreen)](https://carifin-dashboard.onrender.com)
+[![Python](https://img.shields.io/badge/Python-3.10-blue)](https://www.python.org/)
+[![Flask](https://img.shields.io/badge/Flask-2.3.3-red)](https://flask.palletsprojects.com/)
 
+A comprehensive data dashboard for tracking participation and engagement across CariFin Games events. Built with Flask, SQLite, and modern web technologies.
 
-# Dependencies
-* Python3/pip3
-* Packages listed in requirements.txt
+---
 
-# Installing Dependencies
-```bash
-$ pip install -r requirements.txt
-```
+## Overview
 
-# Configuration Management
+The **CariFin Data & Engagement Dashboard** provides a centralized platform for administrators, HR managers, and scorers to manage participants, track event registrations, upload results, and generate detailed performance reports. The system supports role-based access, CSV/Excel imports, and real-time analytics.
 
+### Key Features
 
-Configuration information such as the database url/port, credentials, API keys etc are to be supplied to the application. However, it is bad practice to stage production information in publicly visible repositories.
-Instead, all config is provided by a config file or via [environment variables](https://linuxize.com/post/how-to-set-and-list-environment-variables-in-linux/).
+- **Role-based Authentication** – Admin, HR, and Scorer roles with distinct permissions
+- **Admin Dashboard** – Real-time metrics, filters, and interactive charts (participation by institution, stage completion, gender split, age groups)
+- **User Management** – Create, edit, deactivate/activate users with temporary password generation
+- **Institution Management** – Add, edit, and manage institutions
+- **Event & Season Management** – Create events, seasons, and link them together
+- **HR Dashboard** – View institution-specific metrics and participant roster
+- **Participant Management** – Add participants manually or import via CSV/Excel
+- **Event Registration** – Register participants for events with search and filter capabilities
+- **Scorer Dashboard** – Upload results via CSV, flag errors, and manage result entries
+- **Admin Score Approval** – Review, approve, or reject uploaded results (respects closed seasons)
+- **PDF Reporting** – Generate professional, chart-rich PDF reports (Admin & HR)
+- **CSV Exports** – Export participant rosters and results data
+- **Bulk Import** – Import participant master lists and season registration files (Excel/CSV)
 
-## In Development
+---
 
-When running the project in a development environment (such as gitpod) the app is configured via default_config.py file in the App folder. By default, the config for development uses a sqlite database.
+## Technology Stack
 
-default_config.py
-```python
-SQLALCHEMY_DATABASE_URI = "sqlite:///temp-database.db"
-SECRET_KEY = "secret key"
-JWT_ACCESS_TOKEN_EXPIRES = 7
-ENV = "DEVELOPMENT"
-```
+| Layer | Technologies |
+|-------|--------------|
+| **Backend** | Python 3.10, Flask, Flask-SQLAlchemy, Flask-JWT-Extended, Werkzeug |
+| **Frontend** | HTML5, CSS3, JavaScript, Jinja2 Templates |
+| **Database** | SQLite (SQLAlchemy ORM) |
+| **Authentication** | JWT (JSON Web Tokens) with HTTP-only cookies |
+| **Reporting** | ReportLab (PDF generation), Matplotlib (charts) |
+| **File Processing** | Pandas, openpyxl (Excel/CSV imports) |
+| **Deployment** | Render, Gunicorn |
 
-These values would be imported and added to the app in load_config() function in config.py
+---
 
-config.py
-```python
-# must be updated to inlude addtional secrets/ api keys & use a gitignored custom-config file instad
-def load_config():
-    config = {'ENV': os.environ.get('ENV', 'DEVELOPMENT')}
-    delta = 7
-    if config['ENV'] == "DEVELOPMENT":
-        from .default_config import JWT_ACCESS_TOKEN_EXPIRES, SQLALCHEMY_DATABASE_URI, SECRET_KEY
-        config['SQLALCHEMY_DATABASE_URI'] = SQLALCHEMY_DATABASE_URI
-        config['SECRET_KEY'] = SECRET_KEY
-        delta = JWT_ACCESS_TOKEN_EXPIRES
-...
-```
+## Live Demo
 
-## In Production
+The application is deployed on Render and available at:  
+[https://carifin-dashboard.onrender.com](https://carifin-dashboard.onrender.com)
 
-When deploying your application to production/staging you must pass
-in configuration information via environment tab of your render project's dashboard.
+### Test Credentials
 
-![perms](./images/fig1.png)
+| Role | Email | Password |
+|------|-------|----------|
+| **Admin** | `admin@carifin.com` | `Admin123!` |
+| **HR (CBTT)** | `hr@cbtt.com` | `Hr123!` |
+| **Scorer** | `scorer@carifin.com` | `Scorer123!` |
 
-# Flask Commands
+> **Note:** This is a prototype. Please do not use real data.
 
-wsgi.py is a utility script for performing various tasks related to the project. You can use it to import and test any code in the project. 
-You just need create a manager command function, for example:
+---
 
-```python
-# inside wsgi.py
+## Installation
 
-user_cli = AppGroup('user', help='User object commands')
+### Prerequisites
 
-@user_cli.cli.command("create-user")
-@click.argument("username")
-@click.argument("password")
-def create_user_command(username, password):
-    create_user(username, password)
-    print(f'{username} created!')
+- Python 3.10 or higher
+- pip
+- virtualenv (recommended)
 
-app.cli.add_command(user_cli) # add the group to the cli
-
-```
-
-Then execute the command invoking with flask cli with command name and the relevant parameters
+### Setup
 
 ```bash
-$ flask user create bob bobpass
-```
+# 1. Clone the repository
+git clone https://github.com/JasMintTea/Data-Engagement-Dashboard.git
+cd Data-Engagement-Dashboard
 
+# 2. Create and activate a virtual environment
+python -m venv venv
+source venv/bin/activate      # On Windows: venv\Scripts\activate
 
-# Running the Project
+# 3. Install dependencies
+pip install -r requirements.txt
 
-_For development run the serve command (what you execute):_
-```bash
-$ flask run
-```
+# 4. Set environment variables
+export FLASK_APP=wsgi.py
+export FLASK_ENV=development
 
-_For production using gunicorn (what the production server executes):_
-```bash
-$ gunicorn wsgi:app
-```
+# 5. Initialize the database and seed initial data
+flask shell
+>>> from App.database import db
+>>> db.create_all()
+>>> exit()
+python seed.py
 
-# Deploying
-You can deploy your version of this app to render by clicking on the "Deploy to Render" link above.
-
-# Initializing the Database
-When connecting the project to a fresh empty database ensure the appropriate configuration is set then file then run the following command. This must also be executed once when running the app on heroku by opening the heroku console, executing bash and running the command in the dyno.
-
-```bash
-$ flask init
-```
-
-# Database Migrations
-If changes to the models are made, the database must be'migrated' so that it can be synced with the new models.
-Then execute following commands using manage.py. More info [here](https://flask-migrate.readthedocs.io/en/latest/)
-
-```bash
-$ flask db init
-$ flask db migrate
-$ flask db upgrade
-$ flask db --help
-```
-
-# Testing
-
-## Unit & Integration
-Unit and Integration tests are created in the App/test. You can then create commands to run them. Look at the unit test command in wsgi.py for example
-
-```python
-@test.command("user", help="Run User tests")
-@click.argument("type", default="all")
-def user_tests_command(type):
-    if type == "unit":
-        sys.exit(pytest.main(["-k", "UserUnitTests"]))
-    elif type == "int":
-        sys.exit(pytest.main(["-k", "UserIntegrationTests"]))
-    else:
-        sys.exit(pytest.main(["-k", "User"]))
-```
-
-You can then execute all user tests as follows
-
-```bash
-$ flask test user
-```
-
-You can also supply "unit" or "int" at the end of the comand to execute only unit or integration tests.
-
-You can run all application tests with the following command
-
-```bash
-$ pytest
-```
-
-## Test Coverage
-
-You can generate a report on your test coverage via the following command
-
-```bash
-$ coverage report
-```
-
-You can also generate a detailed html report in a directory named htmlcov with the following comand
-
-```bash
-$ coverage html
-```
-
-# Troubleshooting
-
-## Views 404ing
-
-If your newly created views are returning 404 ensure that they are added to the list in main.py.
-
-```python
-from App.views import (
-    user_views,
-    index_views
-)
-
-# New views must be imported and added to this list
-views = [
-    user_views,
-    index_views
-]
-```
-
-## Cannot Update Workflow file
-
-If you are running into errors in gitpod when updateding your github actions file, ensure your [github permissions](https://gitpod.io/integrations) in gitpod has workflow enabled ![perms](./images/gitperms.png)
-
-## Database Issues
-
-If you are adding models you may need to migrate the database with the commands given in the previous database migration section. Alternateively you can delete you database file.
+# 6. Run the application
+flask run
 
