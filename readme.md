@@ -97,3 +97,73 @@ python seed.py
 # 6. Run the application
 flask run
 
+```
+
+### Running Tests
+
+```bash
+pytest App/tests/ -v
+```
+
+---
+
+### Project Structure
+
+Data-Engagement-Dashboard/
+├── App/
+│   ├── controllers/          # Business logic
+│   ├── models/               # Database models (SQLAlchemy)
+│   ├── views/                # Route handlers (blueprints)
+│   ├── templates/            # Jinja2 HTML templates
+│   ├── static/               # CSS, JavaScript, images
+│   ├── pdf_report.py         # Admin PDF report generator
+│   ├── hr_pdf_report.py      # HR PDF report generator
+│   └── __init__.py           # Flask app factory
+├── instance/                 # SQLite database file
+├── tests/                    # Unit and integration tests
+├── seed.py                   # Database seeding script
+├── wsgi.py                   # Application entry point
+├── requirements.txt          # Python dependencies
+├── render.yaml               # Render deployment configuration
+└── README.md
+
+---
+
+## Environment Variables
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `SECRET_KEY` | Flask secret key | `your-secret-key` |
+| `JWT_SECRET_KEY` | JWT signing key | `your-jwt-secret` |
+| `FLASK_ENV` | Environment (development/production) | `production` |
+| `SQLALCHEMY_DATABASE_URI` | Database URL | `sqlite:///carifin.db` |
+
+---
+
+## API Endpoints (Selected)
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/login` | GET, POST | User login (session + JWT) |
+| `/logout` | GET | Logout and clear JWT cookie |
+| `/admin/dashboard` | GET | Admin dashboard with metrics & filters |
+| `/admin/users` | GET | User management page |
+| `/admin/institutions` | GET | Institution management |
+| `/admin/scores` | GET | Score approval page |
+| `/hr/dashboard` | GET | HR dashboard (institution-specific) |
+| `/hr/register` | GET, POST | Register participants for events |
+| `/hr/report` | GET | Download HR PDF report |
+| `/scorer/upload-results` | GET, POST | Upload results CSV |
+| `/scorer/flag-result/<id>` | POST | Toggle result error flag |
+| `/admin/export/roster` | GET | Export participant roster as CSV |
+| `/admin/export/results` | GET | Export results as CSV |
+| `/admin/import/participants-csv` | POST | Import participants from CSV |
+| `/admin/import-season` | POST | Import season registration Excel file |
+
+---
+
+### Team
+
+- **Jasmin Hippolyte** – Project Lead, Backend, UI/UX
+- **Andrea Birjah-Rampersad** – Frontend, Templates, Scorer Features
+- **Vinayak Maharaj** – Backend, Admin Features, Excel Imports
