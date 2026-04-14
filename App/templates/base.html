@@ -11,6 +11,7 @@
 <body>
     <div class="app-container">
         <!-- SIDEBAR -->
+        {% if current_user %}
         <aside class="sidebar {% if session.get('sidebar_collapsed') %}collapsed{% endif %}" id="sidebar">
             <div class="sidebar-header">
                 <div class="logo">
@@ -127,6 +128,7 @@
                 </div>
             </nav>
         </aside>
+        {% endif %}
 
         <!-- MAIN CONTENT -->
         <main class="main-content">

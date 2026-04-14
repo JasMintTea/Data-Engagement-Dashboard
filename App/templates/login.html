@@ -54,14 +54,10 @@
                     <input type="password" id="password" name="password" required>
                 </div>
                 <div class="forgot-password">
-                    <a href="#">Forgot password?</a>
+                    <a href="{{ url_for('auth_views.forgot_password') }}">Forgot password?</a>
                 </div>
                 <button type="submit" class="login-btn">Login</button>
             </form>
-
-            <div class="request-account">
-                <a href="#">Request Account</a>
-            </div>
         </div>
     </div>
 </body>

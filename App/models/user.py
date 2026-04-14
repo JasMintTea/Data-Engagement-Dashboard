@@ -15,6 +15,8 @@ class User(db.Model):
     role = db.Column(db.String(20), nullable=False)
     is_active = db.Column(db.Boolean, default=True)
     must_change_password = db.Column(db.Boolean, default=False)
+    reset_token = db.Column(db.String(100), nullable=True)
+    reset_token_expiry = db.Column(db.DateTime, nullable=True)
 
     institution_id = db.Column(
         db.Integer, db.ForeignKey("institution.id"), nullable=True

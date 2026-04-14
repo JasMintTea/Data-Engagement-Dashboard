@@ -17,6 +17,8 @@ from flask_jwt_extended import (
 )
 from App.database import db
 from App.models import User
+from datetime import datetime, timedelta
+import secrets
 
 auth_views = Blueprint("auth_views", __name__, template_folder="../templates")
 
@@ -61,8 +63,6 @@ def login():
             return redirect(url_for("auth_views.login"))
 
         # Update last login
-        from datetime import datetime
-
         user.last_login = datetime.utcnow()
         db.session.add(user)
         db.session.commit()
@@ -74,14 +74,12 @@ def login():
         if user.must_change_password:
             session["reset_user_id"] = user.id
             flash("You must reset your password before continuing", "warning")
-            # Create a response for the reset page
-            response = redirect(url_for("auth_views.reset_password"))
-            # Set JWT cookie so reset page can use it if needed
+            # CHANGED: redirect to change_password (not reset_password)
+            response = redirect(url_for("auth_views.change_password"))
             set_access_cookies(response, token)
             return response
 
         # If no reset needed, proceed to dashboard
-        # Redirect based on role
         if user.role == "admin":
             response = redirect(url_for("admin_views.dashboard"))
         elif user.role == "hr":
@@ -93,7 +91,6 @@ def login():
         else:
             response = redirect(url_for("index_views.index_page"))
 
-        # Set JWT cookie
         set_access_cookies(response, token)
         flash("Login successful!", "success")
         return response
@@ -101,8 +98,9 @@ def login():
     return render_template("login.html")
 
 
-@auth_views.route("/reset-password", methods=["GET", "POST"])
-def reset_password():
+# ========== RENAMED: was reset_password, now change_password ==========
+@auth_views.route("/change-password", methods=["GET", "POST"])
+def change_password():
     if "reset_user_id" not in session:
         flash("No password reset required", "danger")
         return redirect(url_for("auth_views.login"))
@@ -114,45 +112,82 @@ def reset_password():
 
         if new_password != confirm_password:
             flash("New passwords do not match", "danger")
-            return redirect(url_for("auth_views.reset_password"))
+            return redirect(url_for("auth_views.change_password"))
 
         user = User.query.get(session["reset_user_id"])
 
         if not user or not user.check_password(current_password):
             flash("Invalid current password", "danger")
-            return redirect(url_for("auth_views.reset_password"))
+            return redirect(url_for("auth_views.change_password"))
 
-        # Set new password
         user.set_password(new_password)
         user.must_change_password = False
         db.session.commit()
 
-        # Create JWT token
         token = create_access_token(identity=str(user.id))
-
-        # Clear reset flag
         session.pop("reset_user_id")
 
-        # Set session variables
         session["user_id"] = user.id
         session["user_role"] = user.role
         session["institution_id"] = user.institution_id
 
-        # Create response with redirect
         if user.role == "admin":
             response = redirect(url_for("admin_views.dashboard"))
         elif user.role == "hr":
             response = redirect(url_for("hr_views.dashboard"))
-        else:  # scorer
+        else:
             response = redirect(url_for("scorer_views.dashboard"))
 
-        # Set JWT cookie
         set_access_cookies(response, token)
-
         flash("Password reset successful!", "success")
         return response
 
-    return render_template("reset_password.html")
+    # NEW TEMPLATE NAME (was reset_password.html, now change_password.html)
+    return render_template("change_password.html")
+
+
+# ========== Forgot password (email entry) ==========
+@auth_views.route("/forgot-password", methods=["GET", "POST"])
+def forgot_password():
+    if request.method == "POST":
+        email = request.form.get("email")
+        user = User.query.filter_by(email=email).first()
+        if user:
+            token = secrets.token_urlsafe(32)
+            user.reset_token = token
+            user.reset_token_expiry = datetime.utcnow() + timedelta(hours=1)
+            db.session.commit()
+            reset_link = url_for("auth_views.reset_password", token=token, _external=True)
+            print(f"Reset link for {email}: {reset_link}")  # For demo; send email in production
+            flash("A password reset link has been sent to your email (check console).", "info")
+        else:
+            flash("Email not found.", "danger")
+        return redirect(url_for("auth_views.login"))
+    return render_template("forgot_password.html")
+
+
+# ========== Token‑based password reset ==========
+@auth_views.route("/reset-password/<token>", methods=["GET", "POST"])
+def reset_password(token):
+    user = User.query.filter_by(reset_token=token).first()
+    if not user or user.reset_token_expiry < datetime.utcnow():
+        flash("Invalid or expired reset link.", "danger")
+        return redirect(url_for("auth_views.login"))
+
+    if request.method == "POST":
+        new_password = request.form.get("password")
+        confirm = request.form.get("confirm_password")
+        if new_password != confirm:
+            flash("Passwords do not match.", "danger")
+            return redirect(url_for("auth_views.reset_password", token=token))
+        user.set_password(new_password)
+        user.reset_token = None
+        user.reset_token_expiry = None
+        db.session.commit()
+        flash("Password reset successfully. Please log in.", "success")
+        return redirect(url_for("auth_views.login"))
+
+    return render_template("reset_password_form.html", token=token)
 
 
 @auth_views.route("/toggle-sidebar", methods=["POST"])
@@ -182,7 +217,7 @@ def user_login_api():
     password = data.get("password")
 
     user = User.query.filter_by(email=email).first()
-    if not user or not user.check_password(password):  # or not user.is_active:
+    if not user or not user.check_password(password):
         return jsonify(message="Invalid credentials"), 401
 
     token = create_access_token(identity=str(user.id))
